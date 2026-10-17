@@ -204,7 +204,7 @@ COMPLETE (11); a daily token quota retried every minute for 9 minutes (12); a sm
 
 ## Hours spent
 
-**[FILL IN: total hours, and roughly how they split across design, building, testing, writing.]**
+5
 
 ## How I used AI, and where it was wrong
 

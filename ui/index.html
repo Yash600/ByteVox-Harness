@@ -337,8 +337,7 @@ async function loadRuns() {
     rows.forEach(r => box.append(el('button', { class: 'run' + (cur === r.id ? ' sel' : ''), onclick: () => openRun(r.id) },
       el('span', { class: 'g', text: r.goal }),
       el('span', { class: 'm' }, el('i', { class: 'dot ' + r.status }), el('span', { text: statusWord(r.status) }),
-        r.budget ? el('span', { text: '- ' + dur(r.budget.seconds) }) : null,
-        el('span', { text: '- ' + when(r.updated) })))));
+        ))));
   } catch (e) { /* best effort */ }
 }
 function when(epoch) {

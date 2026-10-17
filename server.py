@@ -229,8 +229,8 @@ def run_view(run_id, after):
 
 
 def list_runs():
-    """All runs, most recently active first. (Sorting by folder NAME buried new runs under old
-    test_* folders and a fixed cap then hid them; time is the only order that makes sense.)"""
+    """All runs, most recently STARTED first (the start time is in the run's folder name; other folders fall back to
+    their last change). Sorting by plain folder name buried new runs under old test_* folders."""
     rows = []
     if RUNS.exists():
         for d in RUNS.iterdir():
@@ -246,7 +246,9 @@ def list_runs():
             st = s.get("status")
             if st == "running" and not (live and not live.done):
                 st = "interrupted"
-            rows.append({"id": d.name, "goal": s.get("goal", ""), "status": st, "updated": updated,
+            m = re.match(r"run_(\d{8})_(\d{6})", d.name)       # start time is in the name; a resume or Stop must not reorder
+            started = time.mktime(time.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M%S")) if m else updated
+            rows.append({"id": d.name, "goal": s.get("goal", ""), "status": st, "updated": started,
                          "subtasks": len(s.get("subtasks", {})), "budget": s.get("budget")})
     rows.sort(key=lambda r: r["updated"], reverse=True)
     return rows[:300]

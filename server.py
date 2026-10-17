@@ -343,7 +343,15 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     port = int(os.environ.get("PORT", "8765"))
     RUNS.mkdir(exist_ok=True)
-    srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    # On Windows, ThreadingHTTPServer's default SO_REUSEADDR lets a SECOND server bind the same port while the first
+    # keeps answering the browser, so edits to the code seem to have no effect (found in use: Stop "still not working").
+    # Refuse to start instead.
+    ThreadingHTTPServer.allow_reuse_address = False
+    try:
+        srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    except OSError:
+        raise SystemExit(f"Port {port} is already in use, probably by an older copy of this server. "
+                         "Close it (or set PORT=another number) and start again.")
     print(f"ByteVox harness UI on http://127.0.0.1:{port}  (Ctrl+C to stop)")
     try:
         srv.serve_forever()

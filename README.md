@@ -133,10 +133,14 @@ answer key is not in the repo either). Scoring is by code: an issue counts only 
 | Rule scan alone (no model, free) | 12 | 100% | 1 of 14 | 12.6 |
 | Team, first run (before fixes) | 9 | 100% | 0 | 12.2 |
 | Team, second run (after fixes) | **17** | 100% | 0 | **14.2** |
+| Team, third run (same code, COMPLETE, all workers finished) | 12 | 100% | 0 | 13.0 |
 
 - **The rule scan finds the pattern bugs** (hardcoded secrets, MD5, SQL injection, `shell=True`, `eval`, `innerHTML`, bare `except`) but
   **none of the logic bugs**. Only the model found the timing-unsafe compare, the pagination off-by-one, the wrong-sign late fee, the unchecked
   list index and the test that hides the pagination bug. That is the honest case for having a model at all.
+- **Run-to-run variance is large.** The third run finished cleanly (status COMPLETE, 20 calls, 37k tokens, 506 s, nothing lost) yet found 12, not 17.
+  It missed the late-fee sign, the unchecked index, the empty catch and the weak test. So the reliable claims are *no invented evidence in any run* and
+  *no lost subtasks after the fixes*; the issue count moves by about 5 between identical runs, and one run per row is a small sample.
 - **Fixes made the team better**: 9 to 17 of 20 after the three failures described below, with no invented evidence in either run.
 - **Still missed in run 2**: the `0.0.0.0` bind, the undefined `books` variable in the JS filter, and the never-closed DB connection.
 - **What I have not measured**: a single-agent baseline on `library-app` (it costs hosted tokens; the free daily quota was spent). On

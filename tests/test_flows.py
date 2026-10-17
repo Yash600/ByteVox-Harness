@@ -469,6 +469,31 @@ def test_reworded_duplicates_do_not_pile_up_and_get_the_subtask_stuck():
     assert res["status"] == "complete"
 
 
+def test_a_retry_tells_the_worker_what_is_already_kept():
+    """Found in a real run: after a rejection the worker was not told which findings were already kept, so it re-reported
+    its best issues in new words every time. The retry now lists them and says not to repeat them."""
+    seen = {"retry_task": None, "n": 0}
+
+    def worker(msgs):
+        if not tool_results(msgs):
+            return {"action": "tool", "tool": "read_files", "args": {"paths": ["app.py", "utils.py"]}}
+        seen["n"] += 1
+        if seen["n"] == 1:
+            return final(summary="first", findings=[_finding(*FIVE[0]), _finding(*FIVE[2])])
+        seen["retry_task"] = msgs[1]["content"]
+        return final(summary="second", findings=[_finding(*FIVE[3])])
+    verdicts = iter(["reject", "accept"])
+    Script.SCRIPT = {"PLANNER": lambda m: plan([sub("s1", "analyze")]), "WORKER": worker,
+                     "CHECKER": lambda m: final(verdict=next(verdicts), feedback="please also cover the except handling"),
+                     "ASSEMBLER": lambda m: final(summary="s", priority_order=[])}
+    r = new_run("Review this code.", "samples/buggy_repo")
+    res = execute(r)
+    task = seen["retry_task"]
+    assert "ALREADY KEPT" in task and "'Hardcoded API key'" in task and "'Division by zero in average'" in task, task[-400:]
+    st = json.loads((r.dir / "state.json").read_text(encoding="utf-8"))["subtasks"]["s1"]
+    assert st["status"] == "accepted" and len(st["findings"]) == 3 and res["status"] == "complete"
+
+
 def test_same_issue_matching():
     from harness.orchestrator import _same_issue
     ev = lambda f, l: [{"file": f, "line": l, "verified": True, "quote": "q"}]

@@ -247,16 +247,21 @@ def _task_text(run, sub, feedback, more_than=None):
     elif sub["kind"] == "research":
         t += "\nWeb pages saved by earlier steps live under _harness_web/ in the sandbox."
     t += _dependency_context(run, sub)
-    if more_than:
-        t += ("\n\nYOU HAVE ALREADY REPORTED THESE (do not repeat them): "
-              + "; ".join(f"'{x}'" for x in more_than)
-              + f".\nYou hit the limit of {FINDING_CAP} findings, so there may be more. Report up to "
-                f"{FINDING_CAP} NEW, different problems in the same material. If there are none, "
-                "return an empty findings list.")
+    kept = "; ".join(f"'{x}'" for x in (more_than or []))
+    if more_than and not feedback:
+        t += (f"\n\nYOU HAVE ALREADY REPORTED THESE (do not repeat them): {kept}."
+              f"\nYou hit the limit of {FINDING_CAP} findings, so there may be more. Report up to "
+              f"{FINDING_CAP} NEW, different problems in the same material. If there are none, "
+              "return an empty findings list.")
     if feedback:
         t += (f"\n\nYour previous attempt was REJECTED by the checker. Fix this: {feedback}"
               "\nFindings whose evidence was verified are already kept; do not drop them. "
               "Fix or replace the others, and add anything you missed.")
+        if kept:
+            # Without this a worker re-reports its best issues in new words on every retry (found in a real run:
+            # eval() three ways), and the checker then rejects the list for duplicates.
+            t += (f"\nALREADY KEPT (verified; do NOT report these again, not even reworded): {kept}."
+                  "\nReport only what the checker asked for, or genuinely NEW problems.")
     return t
 
 
@@ -285,7 +290,7 @@ def process_subtask(run: Run, sub):
         st(sid, attempts=attempt, status="working")
         try:
             out = run_agent(run, role, f"{role}-{sid}-a{attempt}",
-                            _task_text(run, sub, feedback, [f["title"] for f in carried] if continuing else None))
+                            _task_text(run, sub, feedback, [f["title"] for f in carried] if carried else None))
         except BudgetExceeded as e:
             return _stop(run, sid, e, carried)
         except AgentFailed as e:

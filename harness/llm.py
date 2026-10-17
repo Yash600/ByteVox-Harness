@@ -100,7 +100,7 @@ class GroqProvider:
         # Groq's strict json_object mode breaks reasoning models (gpt-oss), so it is off by
         # default; the harness validates and repairs JSON itself. GROQ_JSON_MODE=1 re-enables.
         payload = {"model": model, "messages": messages,
-                   "temperature": float(os.environ.get("GROQ_TEMPERATURE", "0.2"))}
+                   "temperature": float(os.environ.get("GROQ_TEMPERATURE", "0"))}
         if json_mode and os.environ.get("GROQ_JSON_MODE") == "1":
             payload["response_format"] = {"type": "json_object"}
         # Free tier caps OUTPUT tokens/min (1000 on qwen3.8-27b) and rejects any request whose

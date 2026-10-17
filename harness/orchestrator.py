@@ -16,6 +16,7 @@ from pathlib import Path
 
 from .agents import KIND_ROLE, KINDS, SPECS, Agent, run_agent
 from .budget import BudgetExceeded
+from .coverage import CHECKLIST, ensure_coverage
 from .runtime import AgentFailed, Run
 from .tools import TOOLS
 
@@ -55,6 +56,11 @@ def _clean_quote(q):
 
 def _listing(run):
     return TOOLS["list_dir"].fn(run.sandbox, {"path": ".", "depth": 3})
+
+
+def _has_code(run):
+    from .coverage import source_files
+    return bool(source_files(run))
 
 
 def _has_material(run):
@@ -500,6 +506,16 @@ def _run_subtasks(run, subs, done=None):
             done.add(s["id"])
 
 
+def _coverage(run, subs):
+    """Code review only (the plan analyses files and changes nothing): make sure every source file got a second look,
+    whatever split the planner chose. See coverage.py."""
+    kinds = {s["kind"] for s in subs}
+    if os.environ.get("HARNESS_COVERAGE", "1") == "0":     # switch for tests that exercise single mechanisms
+        return
+    if "analyze" in kinds and "edit" not in kinds:
+        ensure_coverage(run)
+
+
 TERMINAL = ("accepted", "unverified", "unchecked", "failed", "skipped")
 
 
@@ -544,6 +560,7 @@ def _resume(run: Run):
     for sid in redo:
         run.state.update_subtask(sid, status="queued")
     _run_subtasks(run, subs, done=done)
+    _coverage(run, subs)
     snap = run.state.snapshot()
     reasons = [f"{sid} ({st.get('title')}): {st['status']} - {st.get('reason', '')}"
                for sid, st in snap["subtasks"].items() if st["status"] != "accepted"]
@@ -601,6 +618,7 @@ def execute(run: Run):
     log("orchestrator", "plan", subtasks=subs)
 
     _run_subtasks(run, subs)
+    _coverage(run, subs)
 
     snap = run.state.snapshot()
     for sid, st in snap["subtasks"].items():
@@ -674,7 +692,7 @@ def _finish(run: Run, status, reasons, subs):
             f = dict(f)
             f["id"] = f"{sid}.f{i}"
             f["subtask"] = sid
-            f["checked"] = st["status"] == "accepted"
+            f["checked"] = st["status"] == "accepted" and not f.get("unconfirmed")
             all_findings.append(f)
     n_raw = len(all_findings)
     all_findings = merge_findings(all_findings)
@@ -765,7 +783,7 @@ def render_report(run, status, reasons, summary, findings, snap):
     if not findings:
         L.append("_No findings._\n")
     for n, f in enumerate(findings, 1):
-        tag = "" if f["checked"] else " **[UNCHECKED - checker did not approve]**"
+        tag = "" if f["checked"] else (" **[RULE SCAN ONLY - no agent confirmed this]**" if f.get("unconfirmed") else " **[UNCHECKED - checker did not approve]**")
         cat = f"  [{f['category']}]" if f.get("category") else ""
         seen = f"  (found independently {f['seen_by']}x)" if f.get("seen_by", 1) > 1 else ""
         L.append(f"### {n}. {f['title']}  `{f.get('severity', 'n/a')}`{cat}  ({f['id']}){seen}{tag}")

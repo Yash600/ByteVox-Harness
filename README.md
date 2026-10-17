@@ -141,6 +141,12 @@ answer key is not in the repo either). Scoring is by code: an issue counts only 
 - **Run-to-run variance is large.** The third run finished cleanly (status COMPLETE, 20 calls, 37k tokens, 506 s, nothing lost) yet found 12, not 17.
   It missed the late-fee sign, the unchecked index, the empty catch and the weak test. So the reliable claims are *no invented evidence in any run* and
   *no lost subtasks after the fixes*; the issue count moves by about 5 between identical runs, and one run per row is a small sample.
+- **Why the count moved, and the fix.** The planner (a model) splits the files differently every run and nothing checked that the split covered
+  everything; the checker only judges quotes. Now code (`harness/coverage.py`) guarantees: (1) every source file gets a **second, independent look**
+  by a worker told what was already reported for that file; (2) every rule-scan hit that no finding sits near is added as a lead labelled
+  *rule scan only, no agent confirmed this*; (3) the per-file finding counts are logged, so a clean file is visible. It stops when the budget is
+  mostly spent and never adds calls beyond the original limits. Scripted tests cover it; **not yet re-measured live**. Replaying the scan floor over
+  the three real runs lifts them from 9/17/12 to 13/17/13, so the second look is what has to recover the logic bugs.
 - **Fixes made the team better**: 9 to 17 of 20 after the three failures described below, with no invented evidence in either run.
 - **Still missed in run 2**: the `0.0.0.0` bind, the undefined `books` variable in the JS filter, and the never-closed DB connection.
 - **What I have not measured**: a single-agent baseline on `library-app` (it costs hosted tokens; the free daily quota was spent). On

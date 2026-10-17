@@ -6,6 +6,7 @@ The scripted model answers according to the agent's role, so each test exercises
 orchestrator, tool gateway, verifier and budgets. Only the model and the two web tools are fake.
 """
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -23,6 +24,7 @@ from harness.orchestrator import execute, merge_findings  # noqa: E402
 from harness.runtime import Run  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
+os.environ["HARNESS_COVERAGE"] = "0"     # the coverage stage has its own tests; the others isolate one mechanism each
 _orig_model_for = config.model_for
 config.model_for = lambda p, r: "script" if p == "script" else _orig_model_for(p, r)
 
@@ -772,6 +774,106 @@ def test_tools_are_safe():
     except tools.ToolError:
         raise AssertionError("read_files should report per-file errors, not raise")
     assert "escapes the sandbox" in tools.read_files(sb, {"paths": ["../../etc/passwd"]})
+
+
+# ------------------------------------------------------------------ coverage stage (code review)
+class coverage_on:
+    def __enter__(self):
+        os.environ["HARNESS_COVERAGE"] = "1"
+
+    def __exit__(self, *a):
+        os.environ["HARNESS_COVERAGE"] = "0"
+
+
+def _reads_then(answer):
+    def worker(msgs):
+        if not tool_results(msgs):
+            return {"action": "tool", "tool": "read_files", "args": {"paths": ["app.py", "utils.py"]}}
+        return answer(msgs)
+    return worker
+
+
+def test_every_file_gets_a_second_look_even_if_the_planner_skipped_it():
+    """Found in real runs: the planner split the files differently each time, so one run gave a file almost no
+    attention and found 12 of 20 issues where another found 17. Code now makes sure every file is looked at again."""
+    seen = {"second": None}
+
+    def answer(msgs):
+        task = msgs[1]["content"]
+        if "Second look at every file" in task:
+            seen["second"] = task
+            return final(summary="second look", findings=[
+                _finding("Division by zero in average", "utils.py", "return sum(values) / len(values)")])
+        return final(summary="first", findings=[_finding("SQL injection in get_user", "app.py",
+                                                         'query = "SELECT * FROM users WHERE name = '" + name + "'"')])
+    Script.SCRIPT = {"PLANNER": lambda m: plan([sub("s1", "analyze", instr="Review app.py only.")]),
+                     "WORKER": _reads_then(answer), "CHECKER": lambda m: final(verdict="accept", feedback="ok"),
+                     "ASSEMBLER": lambda m: final(summary="s", priority_order=[])}
+    with coverage_on():
+        r = new_run("Review this code.", "samples/buggy_repo")
+        res = execute(r)
+    titles = [f["title"] for f in json.loads((r.dir / "result.json").read_text(encoding="utf-8"))["findings"]]
+    assert "Division by zero in average" in titles and "SQL injection in get_user" in titles, titles
+    assert "utils.py: already reported: NOTHING YET" in seen["second"], seen["second"][-500:]
+    assert "app.py: already reported: 'SQL injection in get_user'" in seen["second"]
+    assert "coverage_start" in kinds(r) and "coverage_done" in kinds(r) and res["status"] == "complete"
+
+
+def test_rule_scan_hits_nobody_reported_still_appear_labelled_as_unconfirmed():
+    def answer(msgs):
+        return final(summary="nothing new", findings=[]) if "Second look" in msgs[1]["content"] else final(
+            summary="first", findings=[_finding("SQL injection in get_user", "app.py",
+                                                'query = "SELECT * FROM users WHERE name = '" + name + "'"')])
+    Script.SCRIPT = {"PLANNER": lambda m: plan([sub("s1", "analyze")]), "WORKER": _reads_then(answer),
+                     "CHECKER": lambda m: final(verdict="accept", feedback="ok"),
+                     "ASSEMBLER": lambda m: final(summary="s", priority_order=[])}
+    with coverage_on():
+        r = new_run("Review this code.", "samples/buggy_repo")
+        execute(r)
+    found = json.loads((r.dir / "result.json").read_text(encoding="utf-8"))["findings"]
+    lead = [f for f in found if f.get("origin") == "rule-scan"]
+    assert any(f["evidence"][0]["line"] == 5 for f in lead), [f["title"] for f in found]    # the hardcoded key
+    assert all(f["checked"] is False and f["unconfirmed"] and f["severity"] in ("high", "medium") for f in lead)
+    assert len({(f["evidence"][0]["file"], f["evidence"][0]["line"]) for f in lead}) == len(lead)   # one per line
+    assert not any(f.get("origin") == "rule-scan" and f["evidence"][0]["line"] == 9 and f["evidence"][0]["file"] == "app.py"
+                   for f in found), "the SQL injection was reported by an agent; the scan must not add it again"
+
+
+def test_second_look_cannot_add_invented_quotes_or_repeat_known_findings():
+    def answer(msgs):
+        if "Second look" in msgs[1]["content"]:
+            return final(summary="x", findings=[
+                _finding("Invented problem", "utils.py", "this line does not exist anywhere"),
+                _finding("SQL injection again, reworded", "app.py",
+                         'query = "SELECT * FROM users WHERE name = '" + name + "'"')])
+        return final(summary="first", findings=[_finding("SQL injection in get_user", "app.py",
+                                                         'query = "SELECT * FROM users WHERE name = '" + name + "'"')])
+    Script.SCRIPT = {"PLANNER": lambda m: plan([sub("s1", "analyze")]), "WORKER": _reads_then(answer),
+                     "CHECKER": lambda m: final(verdict="accept", feedback="ok"),
+                     "ASSEMBLER": lambda m: final(summary="s", priority_order=[])}
+    with coverage_on():
+        r = new_run("Review this code.", "samples/buggy_repo")
+        execute(r)
+    titles = [f["title"] for f in json.loads((r.dir / "result.json").read_text(encoding="utf-8"))["findings"]]
+    assert "Invented problem" not in titles
+    assert sum("SQL injection" in t for t in titles) == 1, titles
+
+
+def test_coverage_is_skipped_when_the_budget_is_mostly_spent_but_the_scan_floor_still_applies():
+    lim = Limits.from_env()
+    lim.max_llm_calls = 5
+    def answer(msgs):
+        return final(summary="first", findings=[_finding("SQL injection in get_user", "app.py",
+                                                         'query = "SELECT * FROM users WHERE name = '" + name + "'"')])
+    Script.SCRIPT = {"PLANNER": lambda m: plan([sub("s1", "analyze")]), "WORKER": _reads_then(answer),
+                     "CHECKER": lambda m: final(verdict="accept", feedback="ok"),
+                     "ASSEMBLER": lambda m: final(summary="s", priority_order=[])}
+    with coverage_on():
+        r = new_run("Review this code.", "samples/buggy_repo", limits=lim)
+        execute(r)
+    assert "coverage_skipped" in kinds(r) and "coverage_start" not in kinds(r)
+    found = json.loads((r.dir / "result.json").read_text(encoding="utf-8"))["findings"]
+    assert any(f.get("origin") == "rule-scan" for f in found)
 
 
 if __name__ == "__main__":

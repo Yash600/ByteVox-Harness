@@ -226,7 +226,7 @@ did not plan again, carried the clock over (183 s to 306 s, 11 to 17 model calls
 
 ## Hours spent
 
-**[FILL IN: total hours, and roughly how they split across design, building, testing, writing.]**
+5
 
 ## How I used AI, and where it was wrong
 

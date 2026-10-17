@@ -282,13 +282,23 @@ did not plan again, carried the clock over (183 s to 306 s, 11 to 17 model calls
 
 ## How I used AI, and where it was wrong
 
-AI (Claude) helped design and write the code, tests and this README, and I directed and reviewed it. **[FILL IN / edit this paragraph in your own words, and be ready to explain every file.]**
+I used Claude (Claude Code) as a pair programmer for almost all of this: it proposed the design, wrote most of the code, tests and this
+README, and ran the experiments. My part was the direction and the judgement: choosing the task, deciding the limits (I rejected its changes that
+raised the model-call caps and held the time cap at 15 minutes), picking the optional extra, testing the harness on projects I wrote myself and
+uploaded, reading the traces, and rejecting results I did not trust. I did not accept a claim without a trace, a test or a scored run behind it, and
+the held-out projects (`library-app`, `support-inbox`) and their answer keys were made outside the repo so the harness could not be tuned to them.
 
 Where it was wrong, and how it was caught:
 1. **It reported a guardrail that did not exist.** It told me workers could not answer before reading a file, but the patch had silently failed on a string mismatch. It was caught later by reading the file, then fixed and covered by a test (`grounding_required`).
 2. **It recommended models that no longer existed.** It suggested Groq's Llama models from a stale documentation page; they had been shut down. I caught it, and the deprecations page (not the models page) turned out to be the reliable one.
 3. **Generated code was mangled by escaping**: a regex `\b` became a backspace character and a newline escape split strings. Syntax errors and a missing SQL-injection finding exposed it; the fix was writing code with the edit tools and testing the rule scanner against known answers.
 4. **Its first "weak evidence" heuristic was too strict** and flagged a correct quote, and the weak local checker then rejected a legitimate finding because of it. A scripted test caught the over-flagging; the check now applies to prose sources only.
+5. **It raised the model-call limits after I asked it only to raise the non-model ones.** I caught it from the numbers; the limits were reverted
+   and a test now pins them.
+6. **It declared Stop fixed when it was not.** The real cause was an older copy of the server still answering on the same port (Windows lets two
+   processes bind it). I checked the process start times against the code edit times to prove it, and the server now refuses a taken port.
+7. **It blamed run-to-run differences on the model when the harness was at fault.** Two runs of the same project found 17 and 12 of 20 issues because
+   nothing checked the planner's file split covered everything; a code-level coverage stage now does.
 
 ## Layout
 
@@ -303,10 +313,11 @@ harness/
   staticscan.py     rule-based code checks with exact lines (no model)
   websearch.py      Tavily/Brave -> DuckDuckGo -> Bing -> Wikipedia
   llm.py            Ollama + Groq adapters, token pacers, circuit breaker
+  coverage.py       code-review guarantee: every file gets a second look; unreported rule-scan hits kept as labelled leads
   safety.py         untrusted-data wrapping, injection flags, approval gate
   baseline.py       the single-agent baseline     rubric.py   the scoring rubric
   budget.py logger.py state.py config.py
-tests/              test_flows.py (32), test_rubric.py (6), test_compare.py (1): scripted model, no network
+tests/              test_flows.py (38), test_rubric.py (7), test_compare.py (1): scripted model, no network
 samples/            buggy_repo (6 planted issues), injection_repo, notes (3 tickets)
 comparison/         results and tables          examples/   19 curated run traces with an INDEX
 ```

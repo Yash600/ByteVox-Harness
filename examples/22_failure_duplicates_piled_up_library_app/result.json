@@ -1,0 +1,491 @@
+{
+  "status": "partial",
+  "reasons": [
+    "s3 (Review web and test files): unverified - checker still rejected after 3 attempts: The findings list is heavily duplicated: eval() on user input appears 3 times (lines 20), innerHTML XSS appears 2 times (line 14), empty catch appears 3 times (line 7), and the empty-ratings test gap appears 3 times. Consolidate each distinct issue into a single finding."
+  ],
+  "summary": "The repository contains critical security vulnerabilities including hardcoded credentials [s1.f1, s1.f2], command injection [s1.f3], SQL injection [s2.f1], and arbitrary code execution via eval() [s3.f1]. High-severity issues also include SSRF with disabled TLS verification [s1.f4] and XSS through unescaped innerHTML [s3.f2]. Medium-severity bugs involve weak password hashing with MD5 [s1.f5], timing-attack-vulnerable token comparison [s1.f6], and various logic errors such as division by zero [s2.f4, s1.f9] and mutable default arguments [s2.f2]. Reliability is further compromised by silent error swallowing in load functions [s2.f3, s3.f3] and missing input validation in CLI commands [s1.f7, s1.f8].",
+  "findings": [
+    {
+      "title": "eval() on user input — arbitrary code execution",
+      "severity": "high",
+      "category": "security",
+      "detail": "applyFilter passes the filter textbox value straight to eval(), letting any visitor run arbitrary JS in the page context.",
+      "evidence": [
+        {
+          "file": "library-app/web/app.js",
+          "quote": "return books.filter((b) => eval(expr));",
+          "verified": true,
+          "line": 20,
+          "support": "n/a"
+        },
+        {
+          "file": "library-app/web/app.js",
+          "quote": "  return books.filter((b) => eval(expr));",
+          "verified": true,
+          "line": 20,
+          "support": "n/a"
+        }
+      ],
+      "id": "s3.f1",
+      "subtask": "s3",
+      "checked": false,
+      "seen_by": 3,
+      "merged_ids": [
+        "s3.f6",
+        "s3.f10"
+      ]
+    },
+    {
+      "title": "Command injection via shell=True in export endpoint",
+      "severity": "high",
+      "category": "security",
+      "detail": "User-supplied 'name' parameter is concatenated into a shell command, enabling arbitrary command execution.",
+      "evidence": [
+        {
+          "file": "library-app/library/server.py",
+          "quote": "subprocess.run(\"tar czf exports/\" + name + \".tgz books.json\", shell=True)",
+          "verified": true,
+          "line": 15,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f3",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "SQL injection in find_by_title",
+      "severity": "high",
+      "category": "security",
+      "detail": "User-supplied title is interpolated directly into SQL via f-string, enabling injection.",
+      "evidence": [
+        {
+          "file": "library-app/library/search.py",
+          "quote": "cur.execute(f\"SELECT id, title, author FROM books WHERE title LIKE '%{title}%'\")",
+          "verified": true,
+          "line": 13,
+          "support": "n/a"
+        }
+      ],
+      "id": "s2.f1",
+      "subtask": "s2",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Hardcoded admin password in source",
+      "severity": "high",
+      "category": "security",
+      "detail": "Admin password is hardcoded in auth.py, exposing credentials to anyone with repo access.",
+      "evidence": [
+        {
+          "file": "library-app/library/auth.py",
+          "quote": "ADMIN_PASSWORD = \"Library#2024!\"",
+          "verified": true,
+          "line": 5,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f1",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Hardcoded secret key for token generation",
+      "severity": "high",
+      "category": "security",
+      "detail": "SECRET_KEY is hardcoded, allowing attackers to forge valid session tokens.",
+      "evidence": [
+        {
+          "file": "library-app/library/auth.py",
+          "quote": "SECRET_KEY = \"7d9f1c0e5b3a48f2a6c1e9d4b8f03a52\"",
+          "verified": true,
+          "line": 6,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f2",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "SSRF with disabled TLS verification in cover endpoint",
+      "severity": "high",
+      "category": "security",
+      "detail": "User-supplied URL is fetched with verify=False, enabling SSRF attacks and MITM on internal services.",
+      "evidence": [
+        {
+          "file": "library-app/library/server.py",
+          "quote": "response = requests.get(url, verify=False)",
+          "verified": true,
+          "line": 19,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f4",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "XSS via innerHTML with unescaped book data",
+      "severity": "high",
+      "category": "security",
+      "detail": "render() concatenates b.title and b.author into innerHTML without escaping, so a crafted title/author injects HTML/JS.",
+      "evidence": [
+        {
+          "file": "library-app/web/app.js",
+          "quote": "list.innerHTML += \"<li>\" + b.title + \" by \" + b.author + \"</li>\";",
+          "verified": true,
+          "line": 14,
+          "support": "n/a"
+        }
+      ],
+      "id": "s3.f2",
+      "subtask": "s3",
+      "checked": false,
+      "seen_by": 2,
+      "merged_ids": [
+        "s3.f11"
+      ]
+    },
+    {
+      "title": "MD5 used for password hashing",
+      "severity": "medium",
+      "category": "security",
+      "detail": "MD5 is cryptographically broken and unsuitable for password hashing; use bcrypt or argon2 instead.",
+      "evidence": [
+        {
+          "file": "library-app/library/auth.py",
+          "quote": "return hashlib.md5(password.encode()).hexdigest()",
+          "verified": true,
+          "line": 10,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f5",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Timing-attack-vulnerable token comparison",
+      "severity": "medium",
+      "category": "security",
+      "detail": "verify_token uses == on tokens, allowing timing side-channel to forge valid session tokens.",
+      "evidence": [
+        {
+          "file": "library-app/library/auth.py",
+          "quote": "    return token == make_token(username)",
+          "verified": true,
+          "line": 25,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f6",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Division by zero in average_rating",
+      "severity": "medium",
+      "category": "bug",
+      "detail": "Calling average_rating with an empty list raises ZeroDivisionError because len(ratings) is 0.",
+      "evidence": [
+        {
+          "file": "library-app/library/utils.py",
+          "quote": "    return sum(ratings) / len(ratings)",
+          "verified": true,
+          "line": 10,
+          "support": "n/a"
+        },
+        {
+          "file": "library-app/library/utils.py",
+          "quote": "return sum(ratings) / len(ratings)",
+          "verified": true,
+          "line": 10,
+          "support": "n/a"
+        }
+      ],
+      "id": "s2.f4",
+      "subtask": "s2",
+      "checked": true,
+      "seen_by": 2,
+      "merged_ids": [
+        "s3.f4"
+      ]
+    },
+    {
+      "title": "Mutable default argument in add_book",
+      "severity": "medium",
+      "category": "bug",
+      "detail": "tags=[] is shared across calls; each call appends 'new' to the same list, corrupting data.",
+      "evidence": [
+        {
+          "file": "library-app/library/storage.py",
+          "quote": "def add_book(title, author, tags=[]):",
+          "verified": true,
+          "line": 22,
+          "support": "n/a"
+        }
+      ],
+      "id": "s2.f2",
+      "subtask": "s2",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Bare except hides all errors in load_books",
+      "severity": "medium",
+      "category": "bug",
+      "detail": "except: catches KeyboardInterrupt/SystemExit and silently returns [] on any error, masking real failures.",
+      "evidence": [
+        {
+          "file": "library-app/library/storage.py",
+          "quote": "    except:",
+          "verified": true,
+          "line": 12,
+          "support": "n/a"
+        }
+      ],
+      "id": "s2.f3",
+      "subtask": "s2",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Empty catch swallows all load errors",
+      "severity": "medium",
+      "category": "reliability",
+      "detail": "loadBooks catches every exception silently, so API failures are invisible to the user and to logs.",
+      "evidence": [
+        {
+          "file": "library-app/web/app.js",
+          "quote": "} catch (e) {}",
+          "verified": true,
+          "line": 7,
+          "support": "n/a"
+        },
+        {
+          "file": "library-app/web/app.js",
+          "quote": "  } catch (e) {}",
+          "verified": true,
+          "line": 7,
+          "support": "n/a"
+        }
+      ],
+      "id": "s3.f3",
+      "subtask": "s3",
+      "checked": false,
+      "seen_by": 3,
+      "merged_ids": [
+        "s3.f7",
+        "s3.f12"
+      ]
+    },
+    {
+      "title": "No argument count validation in CLI commands",
+      "severity": "medium",
+      "category": "bug",
+      "detail": "Commands like add, search, rating, fee, login access argv indices without checking len(argv), causing IndexError crashes.",
+      "evidence": [
+        {
+          "file": "library-app/library/app.py",
+          "quote": "        print(add_book(argv[2], argv[3]))",
+          "verified": true,
+          "line": 25,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f7",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Unvalidated list index in rating command",
+      "severity": "medium",
+      "category": "bug",
+      "detail": "load_books()[int(argv[2]) - 1] will raise IndexError if the user-supplied page number exceeds the list length.",
+      "evidence": [
+        {
+          "file": "library-app/library/app.py",
+          "quote": "        book = load_books()[int(argv[2]) - 1]",
+          "verified": true,
+          "line": 30,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f8",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Potential division-by-zero in average_rating",
+      "severity": "low",
+      "category": "bug",
+      "detail": "If a book has an empty ratings list, average_rating will divide by zero and crash.",
+      "evidence": [
+        {
+          "file": "library-app/library/app.py",
+          "quote": "        print(\"Average rating:\", average_rating(book[\"ratings\"]))",
+          "verified": true,
+          "line": 31,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f9",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "No rate-limiting or lockout on login",
+      "severity": "low",
+      "category": "security",
+      "detail": "The login function performs a single comparison with no throttling, enabling brute-force attacks against the admin account.",
+      "evidence": [
+        {
+          "file": "library-app/library/auth.py",
+          "quote": "    if username == ADMIN_USER and password == ADMIN_PASSWORD:",
+          "verified": true,
+          "line": 19,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f10",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Requests call without timeout can hang indefinitely",
+      "severity": "low",
+      "category": "bug",
+      "detail": "The cover endpoint's requests.get has no timeout parameter, so a slow or unresponsive server will block the worker forever.",
+      "evidence": [
+        {
+          "file": "library-app/library/server.py",
+          "quote": "    response = requests.get(url, verify=False)",
+          "verified": true,
+          "line": 19,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f11",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Test gap: pagination off-by-one is hidden",
+      "severity": "medium",
+      "category": "test-gap",
+      "detail": "Docstring says pages are numbered from 1, but paginate uses page*size so page 0 returns the first page; the only test asserts page 0, masking the mismatch.",
+      "evidence": [
+        {
+          "file": "library-app/library/utils.py",
+          "quote": "\"\"\"Return one page of items. Pages are numbered from 1.\"\"\"",
+          "verified": true,
+          "line": 14,
+          "support": "n/a"
+        },
+        {
+          "file": "library-app/tests/test_utils.py",
+          "quote": "assert paginate(list(range(25)), 0, 10) == list(range(10))",
+          "verified": true,
+          "line": 14,
+          "support": "n/a"
+        }
+      ],
+      "id": "s3.f5",
+      "subtask": "s3",
+      "checked": false,
+      "seen_by": 2,
+      "merged_ids": [
+        "s3.f14"
+      ]
+    },
+    {
+      "title": "Tests do not cover empty-input division in average_rating",
+      "severity": "medium",
+      "category": "test-gap",
+      "detail": "test_utils.py only tests average_rating with a non-empty list, so a ZeroDivisionError on empty input would go undetected.",
+      "evidence": [
+        {
+          "file": "library-app/tests/test_utils.py",
+          "quote": "    assert average_rating([4, 5]) == 4.5",
+          "verified": true,
+          "line": 10,
+          "support": "n/a"
+        }
+      ],
+      "id": "s3.f8",
+      "subtask": "s3",
+      "checked": false,
+      "seen_by": 1
+    },
+    {
+      "title": "No test for empty ratings",
+      "severity": "medium",
+      "category": "test-gap",
+      "detail": "average_rating divides by len(ratings) with no guard; no test covers the empty-list case that would raise ZeroDivisionError.",
+      "evidence": [
+        {
+          "file": "library-app/library/utils.py",
+          "quote": "return sum(ratings) / len(ratings)",
+          "verified": true,
+          "line": 10,
+          "support": "n/a"
+        }
+      ],
+      "id": "s3.f13",
+      "subtask": "s3",
+      "checked": false,
+      "seen_by": 1
+    },
+    {
+      "title": "requirements.txt dependency review",
+      "severity": "low",
+      "category": "dependencies",
+      "detail": "Only dependency is requests>=2.31, which is a current, well-maintained package; no risky or outdated dependencies found.",
+      "evidence": [
+        {
+          "file": "library-app/requirements.txt",
+          "quote": "requests>=2.31",
+          "verified": true,
+          "line": 1,
+          "support": "ok"
+        }
+      ],
+      "id": "s3.f9",
+      "subtask": "s3",
+      "checked": false,
+      "seen_by": 1
+    },
+    {
+      "title": "late_fee computes days in wrong order",
+      "severity": "medium",
+      "category": "bug",
+      "detail": "(due - returned).days is negative when returned is after due, so late returns produce a negative fee instead of a positive one.",
+      "evidence": [
+        {
+          "file": "library-app/library/utils.py",
+          "quote": "    days = (due - returned).days",
+          "verified": true,
+          "line": 21,
+          "support": "n/a"
+        }
+      ],
+      "id": "s2.f5",
+      "subtask": "s2",
+      "checked": true,
+      "seen_by": 1
+    }
+  ]
+}

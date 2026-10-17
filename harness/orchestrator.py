@@ -182,8 +182,15 @@ def _weak_findings(findings):
 
 
 def _merge(carried, new):
-    seen = {f["title"].strip().lower() for f in carried}
-    return carried + [f for f in new if f["title"].strip().lower() not in seen]
+    """Add new findings to the ones already kept, dropping repeats. A repeat is the same issue worded
+    differently ("eval() on user input" / "eval() on user-supplied filter expression", same line), not just
+    an identical title. If near-duplicates piled up here the worker could never remove them (kept findings
+    are kept), the checker would reject the list for duplicates, and the subtask would never be accepted."""
+    kept = list(carried)
+    for f in new:
+        if not any(_same_issue(f, g) for g in kept):
+            kept.append(f)
+    return kept
 
 
 # ------------------------------------------------------------------- hints (code, no model)
@@ -612,6 +619,20 @@ def _files(f):
     return {e.get("file") for e in f.get("evidence", []) if e.get("verified")}
 
 
+def _same_issue(f, g):
+    """True if two findings describe the same problem: identical title, or the same source line plus a shared
+    key word, or near-identical titles on the same source."""
+    if str(f.get("title", "")).strip().lower() == str(g.get("title", "")).strip().lower():
+        return True
+    # compare word STEMS so "average" matches "averaging" and "secret" matches "secrets"
+    sf = {t[:5] for t in _tokens(f.get("title"))}
+    sg = {t[:5] for t in _tokens(g.get("title"))}
+    jac = len(sf & sg) / max(1, len(sf | sg))
+    same_loc = bool(_locs(f) & _locs(g)) and bool(sf & sg)
+    same_src = bool(_files(f) & _files(g)) and jac >= 0.7
+    return same_loc or same_src
+
+
 def merge_findings(findings):
     """Merge duplicates reported by different workers. Same source location plus a shared key
     word, or near-identical titles on the same source, count as one finding. A finding seen by
@@ -619,15 +640,7 @@ def merge_findings(findings):
     order = sorted(findings, key=lambda f: SEV_RANK.get(str(f.get("severity")).lower(), 3))
     out = []
     for f in order:
-        twin = None
-        for g in out:
-            tf, tg = _tokens(f.get("title")), _tokens(g.get("title"))
-            jac = len(tf & tg) / max(1, len(tf | tg))
-            same_loc = bool(_locs(f) & _locs(g)) and bool(tf & tg)
-            same_src = bool(_files(f) & _files(g)) and jac >= 0.7
-            if same_loc or same_src:
-                twin = g
-                break
+        twin = next((g for g in out if _same_issue(f, g)), None)
         if twin is None:
             f = dict(f)
             f["seen_by"] = 1

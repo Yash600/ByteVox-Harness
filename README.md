@@ -143,6 +143,15 @@ dollars are $0. Full tables: `comparison/COMPARISON.md`, `comparison/COMPARISON_
 | Ticket triage | multi-agent (PARTIAL) | **13.3** | 2 of 3 tickets | 187 s | 28 | 23,977 |
 | Ticket triage | single agent | 10.0 | 0 of 3 | 172 s | 14 | 33,077 |
 
+**Held-out projects (written after the harness was tuned; no single-agent baseline, so they are evidence, not part of the table above)**
+
+| Input | Run | Result against its answer key |
+|---|---|---|
+| `library-app` (20 planted issues) | first run | 9 found, all real, one subtask lost to a harness bug (fixed) |
+| `library-app` | second run, after the fixes | **15 clearly found, 2 more partly**, nothing invented; ended PARTIAL because of the duplicate bug above (since fixed) |
+| `support-inbox` (14 tickets, injection planted in one) | first run | 13 of 14 urgencies right, all 5 high tickets right, injection not obeyed |
+| `support-inbox` | crash-and-resume run | **14 of 14** urgencies right, all high tickets right, injection not obeyed |
+
 ### What this says, honestly
 - **The weaker the model, the more the structure helps.** On the 3B model the single agent found *nothing relevant* on both tasks
   (it flailed for 12-14 calls) while the team found real issues, and used **fewer** tokens (0.6x). The planner narrows each
@@ -175,6 +184,8 @@ failure with a scripted model. I did not re-measure it live, to save tokens, so 
 A second real-use bug: on an open web question (`examples/18_open_question_web_research`) the checker kept rejecting correct quotes, because my HTML-to-text step put every link on its own line (`herbal medicines , special diets`), so a sentence copied naturally failed the exact-match check. Sentences are now kept whole, and the match ignores formatting-only differences (citation markers like `[12]`, spaces before punctuation, curly quotes) while the words themselves must still match exactly; `test_web_text_keeps_sentences_whole_and_natural_quotes_verify` covers it.
 
 A third, found by testing on a fresh project nobody had tuned for (`examples/20_failure_agent_ran_out_of_steps_files_never_reviewed`): one worker kept calling tools until its step limit, never answered, and its whole subtask was lost, so three source files were never reviewed and the SQL injection was missed. The run said PARTIAL correctly, but the work was wasted. An agent that runs out of steps now gets one last call that can only answer (`test_an_agent_that_runs_out_of_steps_is_asked_for_its_answer_not_discarded`). The same run showed two smaller losses, also fixed: a model wrote tool arguments beside the tool name instead of inside `args` (rejected twice, wasting two of six steps; both spellings are now accepted), and one worker returned exactly the cap of 5 findings so the rest were silently dropped (a full answer now triggers a follow-up pass that asks for NEW, different findings; `test_a_worker_that_fills_its_quota_is_asked_for_more`). Scored against the planted answer key the original run found 9 of 20 issues, every one real, checked and correctly ranked: it was precise but incomplete. These fixes are tested with a scripted model but not yet re-measured live.
+
+A fourth, found by re-running the same held-out project (`examples/22_failure_duplicates_piled_up_library_app`): a worker re-reported the same `eval()`, `innerHTML` and empty-catch problems under reworded titles. Findings that passed the evidence check are kept so an agent cannot escape a rejection by deleting them, but duplicates were recognised only by identical title, so the near-duplicates piled up, the checker rejected the list for duplicates three times, the worker could not remove them, and the subtask ended unverified with its genuine findings marked unchecked. Duplicates are now recognised by the same source line plus shared word stems whenever findings are carried forward (`test_reworded_duplicates_do_not_pile_up_and_get_the_subtask_stuck`); replaying the real run's 14 findings through the fix leaves 7 distinct ones.
 
 Other failures that shaped the design (all with traces in `examples/`): workers returning zero findings to escape rejection and the run saying
 COMPLETE (11); a daily token quota retried every minute for 9 minutes (12); a small model refusing a doable task (13).
@@ -254,7 +265,7 @@ harness/
   safety.py         untrusted-data wrapping, injection flags, approval gate
   baseline.py       the single-agent baseline     rubric.py   the scoring rubric
   budget.py logger.py state.py config.py
-tests/              test_flows.py (28), test_rubric.py (6), test_compare.py (1): scripted model, no network
+tests/              test_flows.py (31), test_rubric.py (6), test_compare.py (1): scripted model, no network
 samples/            buggy_repo (6 planted issues), injection_repo, notes (3 tickets)
 comparison/         results and tables          examples/   19 curated run traces with an INDEX
 ```

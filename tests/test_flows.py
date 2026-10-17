@@ -440,6 +440,49 @@ def test_follow_up_that_finds_nothing_new_stops_without_another_check():
     assert res["status"] == "complete"
 
 
+def test_reworded_duplicates_do_not_pile_up_and_get_the_subtask_stuck():
+    """Found in a real library-app run: a worker kept re-reporting eval()/innerHTML/empty-catch under slightly
+    different titles. Kept findings are never dropped, so near-duplicates piled up, the checker rejected the
+    list for duplicates, the worker could not fix it, and the subtask ended 'unverified'."""
+    def worker(msgs):
+        if not tool_results(msgs):
+            return {"action": "tool", "tool": "read_files", "args": {"paths": ["app.py", "utils.py"]}}
+        if "ALREADY REPORTED" in msgs[1]["content"]:                  # the follow-up repeats everything reworded
+            return final(summary="again", findings=[
+                _finding("Secret key hardcoded in the source file", "app.py", FIVE[0][2]),
+                _finding("SQL injection through string concatenation", "app.py", FIVE[1][2]),
+                _finding("ZeroDivisionError when averaging an empty list", "utils.py", FIVE[2][2])])
+        return final(summary="first", findings=[_finding(*f) for f in FIVE])
+    checks = {"n": 0}
+
+    def checker(msgs):
+        checks["n"] += 1
+        return final(verdict="accept", feedback="ok")
+    Script.SCRIPT = {"PLANNER": lambda m: plan([sub("s1", "analyze")]), "WORKER": worker, "CHECKER": checker,
+                     "ASSEMBLER": lambda m: final(summary="s", priority_order=[])}
+    r = new_run("Review this code.", "samples/buggy_repo")
+    res = execute(r)
+    st = json.loads((r.dir / "state.json").read_text(encoding="utf-8"))["subtasks"]["s1"]
+    assert len(st["findings"]) == 5, [f["title"] for f in st["findings"]]    # the rewordings were recognised as repeats
+    assert st["status"] == "accepted" and st["attempts"] == 2, (st["status"], st["attempts"])
+    assert "no_more_findings" in kinds(r) and "loop_limit" not in kinds(r) and checks["n"] == 1
+    assert res["status"] == "complete"
+
+
+def test_same_issue_matching():
+    from harness.orchestrator import _same_issue
+    ev = lambda f, l: [{"file": f, "line": l, "verified": True, "quote": "q"}]
+    a = {"title": "eval() on user input - arbitrary code execution", "evidence": ev("web/app.js", 20)}
+    b = {"title": "eval() on user-supplied filter expression", "evidence": ev("web/app.js", 20)}
+    c = {"title": "XSS via innerHTML with unescaped book data", "evidence": ev("web/app.js", 14)}
+    d = {"title": "Hardcoded API key", "evidence": ev("app.py", 5)}
+    e = {"title": "Unfinished work marker TODO", "evidence": ev("app.py", 5)}
+    assert _same_issue(a, b) and not _same_issue(a, c)
+    assert not _same_issue(d, e)                       # two different problems on one line stay separate
+    assert not _same_issue({"title": "Division by zero", "evidence": ev("utils.py", 10)},
+                           {"title": "Division by zero in tests", "evidence": ev("tests/test_utils.py", 10)})
+
+
 def test_tool_arguments_are_accepted_beside_the_tool_name_too():
     """Found in a real run: {"tool":"read_files","paths":[...]} (no "args") was rejected twice, wasting steps."""
     got = {}
@@ -496,7 +539,7 @@ def test_follow_up_passes_never_exceed_the_original_attempt_budget():
             return {"action": "tool", "tool": "read_files", "args": {"paths": ["app.py", "utils.py"]}}
         if "ALREADY REPORTED" in msgs[1]["content"]:
             state["n"] += 1
-            titles = [f"Extra issue {state['n']}-{i}" for i in range(5)]       # always a full batch: it would never stop
+            titles = [f"Qz{state['n']}x{i}" for i in range(5)]       # genuinely new, always a full batch: it would never stop
             lines = ["import json", "def average(values):", "return sum(values) / len(values)", "def load_config(path):", "f = open(path)"]
             return final(summary="more", findings=[_finding(t, "utils.py", q) for t, q in zip(titles, lines)])
         return final(summary="first", findings=[_finding(*f) for f in FIVE])

@@ -113,6 +113,27 @@ class Run:
             raise BudgetExceeded("run", "cancelled by user")
         agent.budget.check()
 
+    def _chat_cancellable(self, provider, model, messages, json_mode, timeout):
+        """A model call can take minutes (a local model: up to 400 s). Stop must not wait for it: the call runs in a
+        helper thread and the run stops waiting the moment Stop is pressed. The abandoned call finishes on its own
+        and its answer is discarded."""
+        box = {}
+
+        def call():
+            try:
+                box["res"] = self.router.chat(provider, model, messages, json_mode, timeout)
+            except BaseException as e:  # noqa: BLE001 - re-raised in the caller below
+                box["err"] = e
+        t = threading.Thread(target=call, daemon=True, name="llm-call")
+        t.start()
+        while t.is_alive():
+            t.join(0.25)
+            if self.cancel.is_set():
+                raise BudgetExceeded("run", "cancelled by user")
+        if "err" in box:
+            raise box["err"]
+        return box["res"]
+
     def _fit(self, agent, provider, messages):
         """Shrink the context so one request can fit the provider's tokens-per-minute cap.
         A request bigger than the cap can never succeed, so retrying it is pointless. Oldest
@@ -163,7 +184,7 @@ class Run:
                     # never let one call outlive the run: cap its timeout by the time that is left
                     cap = L.llm_timeout_local if provider == "ollama" else L.llm_timeout
                     left = max(0.0, L.max_seconds - self.budget.elapsed())
-                    res = self.router.chat(provider, model, sent, json_mode, max(5.0, min(cap, left + 5.0)))
+                    res = self._chat_cancellable(provider, model, sent, json_mode, max(5.0, min(cap, left + 5.0)))
                 except LLMError as e:
                     last = e
                     self.bump("llm_errors")

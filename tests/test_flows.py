@@ -876,6 +876,23 @@ def test_coverage_is_skipped_when_the_budget_is_mostly_spent_but_the_scan_floor_
     assert any(f.get("origin") == "rule-scan" for f in found)
 
 
+def test_stop_does_not_wait_for_a_model_call_that_is_still_running():
+    """Found in use: Stop did nothing while a slow (local) model call was in flight, because cancel was only
+    looked at between calls."""
+    import threading
+
+    def slow_planner(msgs):
+        time.sleep(6)
+        return plan([sub("s1", "analyze")])
+    Script.SCRIPT = {"PLANNER": slow_planner}
+    r = new_run("Review this code.", "samples/buggy_repo")
+    threading.Timer(0.5, r.cancel.set).start()
+    t0 = time.time()
+    res = execute(r)
+    assert time.time() - t0 < 4, "the run must stop within moments of Stop, not after the model call"
+    assert res["status"] == "failed" and "cancelled" in json.dumps(res["reasons"])
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     failed = 0

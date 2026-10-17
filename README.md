@@ -23,7 +23,8 @@ flowchart TD
     V -- not found --> W
     V --> C[Checker <i>LLM</i><br/>judges relevance, 3 steps max]
     C -- reject, max 2 loops --> W
-    C --> M[Merge duplicates <i>code</i>]
+    C --> COV[Coverage pass <i>code + worker</i><br/>every file looked at twice,<br/>unreported scan hits kept as leads]
+    COV --> M[Merge duplicates <i>code</i>]
     H --> M
     M --> A[Assembler <i>LLM</i><br/>answer + ranking]
     A --> OUT[report.md, result.json,<br/>trace.jsonl, diff.patch]
@@ -33,13 +34,14 @@ flowchart TD
 
 ## Run it
 
-Python 3.9+, **no packages to install** (standard library only).
+Python 3.9+ (developed and tested on 3.11), **no packages to install** (standard library only).
 
 ```bash
 # 1. a model: local and free ...
 ollama pull qwen2.5:3b                  # https://ollama.com
 # ... and/or a hosted one (much stronger). Set the key in your shell, never in code:
-setx GROQ_API_KEY "<your key>"          # free key: console.groq.com   (open a NEW terminal after)
+setx GROQ_API_KEY "<your key>"          # Windows; free key: console.groq.com   (open a NEW terminal after)
+# macOS/Linux: export GROQ_API_KEY="<your key>"
 setx TAVILY_API_KEY "<your key>"        # optional web-search key; without it DuckDuckGo/Bing/Wikipedia are used
 
 # 2. the web UI  -> http://127.0.0.1:8765
@@ -60,7 +62,7 @@ python compare.py --provider groq
 
 Environment variables: `GROQ_API_KEY`, `TAVILY_API_KEY` / `BRAVE_API_KEY` (optional), `LLM_PROVIDER` (`ollama`|`groq`),
 `LLM_FALLBACK`, `OLLAMA_MODEL` (default `qwen2.5:3b`), `GROQ_MODEL_FAST` / `GROQ_MODEL_STRONG` (default `qwen/qwen3.8-27b`),
-and `HARNESS_<LIMIT>` to override any limit (for example `HARNESS_MAX_SECONDS=1800`). **Reviewers: use your own key via `GROQ_API_KEY`.**
+`GROQ_TEMPERATURE` (default `0`, so repeated runs behave alike), `HARNESS_COVERAGE=0` (switch off the code-review coverage stage), `HARNESS_LIBRARY_APP` (path of the held-out project for the rubric), and `HARNESS_<LIMIT>` to override a limit (the time limit is always clamped to 900 s). **Reviewers: use your own key via `GROQ_API_KEY`; the server's Hosted option stays greyed out until the server was started in a terminal that has it.**
 
 ## What it can do
 
@@ -83,7 +85,7 @@ chooses a *kind* per subtask (`analyze`, `research`, `edit`) and optional depend
 | 2 | Parallel + one shared state | `orchestrator._run_subtasks` (thread pool, dependency waves). One `RunState` (`state.json`, lock, atomic write). |
 | 3 | Limits | `config.Limits`: calls, tokens, seconds for the run **and** per agent; checker capped at 3 steps. Timeouts are capped by the time left in the run. Clean stop, labelled PARTIAL. |
 | 4 | Fail gracefully | Retries with exponential backoff and `Retry-After`; fallback model; circuit-breaker when a daily quota is gone; one failed subtask never stops others; fallback plan if the planner fails. |
-| 5 | Verify | Code checks every quote exists (`verify_findings`), then the checker agent judges; up to 2 rejection loops, then the findings are kept but labelled *unverified*. |
+| 5 | Verify | Code checks every quote exists (`verify_findings`), then the checker agent judges; up to 2 rejection loops, then the findings are kept but labelled *unverified*. For code review a coverage stage (`harness/coverage.py`) then guarantees every source file a second look. |
 | 6 | Least privilege + approval | Per-role allow-lists enforced in `Run.call_tool`; edits only inside a private copy and only after a human approves the diff (UI or terminal). |
 | 7 | Untrusted content | Everything read is wrapped in `<untrusted_data>`, instruction-like text is flagged and logged, and **the defence is structural**: even an obeying model cannot call a tool it was not given. Demo: `examples/15_prompt_injection_flagged`. |
 | 8 | Logging | `trace.jsonl`: agent, full prompt, tool call, result, tokens, seconds, for every step. UI has Activity, Safety log and Replay; CLI has `replay.py`. |
@@ -103,7 +105,7 @@ bounds it (free tiers cap tokens per minute and per day). A test pins these so t
 | Model calls per run / steps per agent | 40 / 6 (plus one reserved call so an agent can always give its answer) |
 | Tokens per run / per agent | 150,000 / 40,000 |
 | Subtasks per plan, checker rejection loops, parallel agents | 3, 2, 2 |
-| A worker's reply | about 5 findings (reply length is provider-bound); asking for more shares the same 3 attempts, so it adds no calls |
+| A worker's reply | about 5 findings (reply length is provider-bound). For code review a coverage stage asks for more per file (up to 4 passes of 2 files); it runs only while at least 30% of every budget is left, and the call and token limits above still apply |
 
 Caps that belong to this code and **do not involve the model** are generous, and can be overridden with `HARNESS_<NAME>`:
 
@@ -146,13 +148,15 @@ answer key is not in the repo either). Scoring is by code: an issue counts only 
   everything; the checker only judges quotes. Now code (`harness/coverage.py`) guarantees: (1) every source file gets a **second, independent look**
   by a worker told what was already reported for that file; (2) every rule-scan hit that no finding sits near is added as a lead labelled
   *rule scan only, no agent confirmed this*; (3) the per-file finding counts are logged, so a clean file is visible. It stops when the budget is
-  mostly spent and never adds calls beyond the original limits. Scripted tests cover it; **not yet re-measured live**. Replaying the scan floor over
-  the three real runs lifts them from 9/17/12 to 13/17/13, so the second look is what has to recover the logic bugs.
-- **Fixes made the team better**: 9 to 17 of 20 after the three failures described below, with no invented evidence in either run.
-- **Still missed in run 2**: the `0.0.0.0` bind, the undefined `books` variable in the JS filter, and the never-closed DB connection.
+  mostly spent and never goes beyond the original call and token limits. **First live run with it** (last table row, `examples/24`): COMPLETE in 603 s
+  (an earlier run on the same project without it hit the 900 s cap, `examples/23`), 15 of 20 found, all quotes real. Its passes then covered 4 files
+  each and added only 2 findings, because a reply is capped at 5; passes now take 2 files each, **not yet re-measured live**. Replaying the scan floor
+  over the three earlier real runs lifts them from 9/17/12 to 13/17/13, so the second look is what has to recover the logic bugs.
+- **The fixes helped, but not monotonically**: 9 of 20 before the fixes, then 17, 12, 15 and (a run that hit the time cap, `examples/23`) 18 after them, with no invented evidence in any run. Counts vary run to run, so I claim the properties above, not a number.
+- **Most often missed** across the later runs: the `0.0.0.0` bind, the undefined `books` variable in the JS filter, the never-closed DB connection, and the timing-unsafe compare.
 - **What I have not measured**: a single-agent baseline on `library-app` (it costs hosted tokens; the free daily quota was spent). On
   `buggy_repo` the baseline tied the team on the hosted model and lost badly on the 3B model (below). Reproduce the scoring with
-  `HARNESS_LIBRARY_APP=<path> python compare.py --tasks library`.
+  `HARNESS_LIBRARY_APP=<path> python compare.py --tasks library`. The baseline tables below were produced **before** the coverage stage existed, so they describe the team without it.
 
 **Extras (kept short on purpose).** The same harness also ran ticket triage and a web research brief; scores are in the tables below. They are
 a demonstration that the design is not tied to code, not the main claim.
@@ -270,10 +274,11 @@ did not plan again, carried the clock over (183 s to 306 s, 11 to 17 model calls
 ## What I cut for time
 
 - **Cost-aware model routing.** Roles have "fast"/"strong" tiers in `config.py`, but both default to the same model.
-- **Line-by-line coverage tracking** for reviews (a ledger proving every chunk was read) and a **cross-subtask consistency check** (one triage ticket can still get two urgencies).
+- **Line-level coverage tracking** (a ledger proving every chunk was read; coverage is guaranteed per file, not per line) and a **cross-subtask consistency check** (one triage ticket can still get two urgencies).
 - **MCP exposure.** Not built.
 - **Not supported:** PDFs/images, JavaScript-only or logged-in web pages, private repos, running code.
-- **Soft limits:** a model call already in flight finishes, so a run can overshoot its time limit slightly.
+- **Soft limits:** a run can overshoot its time limit by a second or two (902 s was observed). Stop and the time cap abandon a model call in flight, but the abandoned call still completes in the background and is discarded.
+- **Free-tier time:** on Groq's free tier a code review is paced by the tokens-per-minute limit, so most of the 15 minutes is waiting, not computing (24 s of model time in `examples/23`).
 - **Statistical rigour:** one run per comparison cell.
 
 ## Hours spent
@@ -319,5 +324,5 @@ harness/
   budget.py logger.py state.py config.py
 tests/              test_flows.py (38), test_rubric.py (7), test_compare.py (1): scripted model, no network
 samples/            buggy_repo (6 planted issues), injection_repo, notes (3 tickets)
-comparison/         results and tables          examples/   19 curated run traces with an INDEX
+comparison/         results and tables          examples/   24 curated run traces with an INDEX
 ```

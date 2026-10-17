@@ -9,6 +9,7 @@ import json
 import shutil
 import sys
 import tempfile
+import time
 import traceback
 from pathlib import Path
 
@@ -509,6 +510,115 @@ def test_follow_up_passes_never_exceed_the_original_attempt_budget():
     assert st["attempts"] == 3, st["attempts"]                       # 1 + max_check_loops(2): the same as before
     assert k.count("continuing_after_cap") == 2, k.count("continuing_after_cap")
     assert res["status"] == "complete" and st["status"] == "accepted" and len(st["findings"]) == 15, len(st["findings"])
+
+
+class SimulatedCrash(BaseException):
+    """Stands in for the process dying. It is a BaseException, so nothing in the harness may swallow it."""
+
+
+def _two_subtask_script(calls, crash):
+    def planner(msgs):
+        calls["planner"] += 1
+        return plan([sub("s1", "analyze"), sub("s2", "analyze")])
+
+    def worker(msgs):
+        sid = "s1" if "SUBTASK s1" in msgs[1]["content"] else "s2"
+        if not tool_results(msgs):
+            calls[sid] += 1
+            if sid == "s2" and crash["on"]:
+                raise SimulatedCrash()
+            return {"action": "tool", "tool": "read_file", "args": {"path": "utils.py"}}
+        t, q = (("Division by length", "return sum(values) / len(values)") if sid == "s1"
+                else ("Bare except hides errors", "except:"))
+        return final(summary="x", findings=[_finding(t, "utils.py", q)])
+    Script.SCRIPT = {"PLANNER": planner, "WORKER": worker,
+                     "CHECKER": lambda m: final(verdict="accept", feedback="ok"),
+                     "ASSEMBLER": lambda m: final(summary="done", priority_order=[])}
+
+
+def test_a_crashed_run_resumes_without_redoing_finished_work():
+    """The process dies after s1 finished and while s2 was running. Resume must keep s1, re-run only s2,
+    not plan again, carry the spent budget over, and keep the trace numbering unbroken."""
+    from harness.runtime import Run
+    calls, crash = {"planner": 0, "s1": 0, "s2": 0}, {"on": True}
+    _two_subtask_script(calls, crash)
+    L = Limits.from_env()
+    L.concurrency = 1                                   # s1 finishes first, then s2 is the one that dies
+    r = new_run("Review this code.", "samples/buggy_repo", limits=L)
+    try:
+        execute(r)
+        raise AssertionError("the simulated crash should have escaped")
+    except SimulatedCrash:
+        pass
+    st = json.loads((r.dir / "state.json").read_text(encoding="utf-8"))
+    assert st["status"] == "running" and st["subtasks"]["s1"]["status"] == "accepted"
+    assert st["subtasks"]["s2"]["status"] not in ("accepted", "failed", "unverified")
+    spent = r.budget.calls
+
+    crash["on"] = False
+    r2 = Run.resume_from(r.dir, router=Router(provider="script", fallback=None), approval_mode="approve")
+    assert r2.budget.calls == spent, "the spent model calls must carry over"
+    res = execute(r2)
+
+    assert res["status"] == "complete", res
+    assert calls["planner"] == 1, "a resumed run must not plan again"
+    assert calls["s1"] == 1, "a finished subtask must not be run again"
+    assert calls["s2"] == 2, "the unfinished subtask runs again"
+    ev = read_trace(r.logger.path)
+    resumed = [e for e in ev if e["kind"] == "run_resumed"][0]
+    assert resumed["kept"] == ["s1"] and resumed["redo"] == ["s2"]
+    seqs, ts = [e["seq"] for e in ev], [e["t"] for e in ev]
+    assert seqs == sorted(seqs) and len(set(seqs)) == len(seqs), "trace numbering must never restart"
+    assert ts == sorted(ts), "run time must keep counting from where it stopped"
+    final_state = json.loads((r.dir / "state.json").read_text(encoding="utf-8"))
+    assert final_state["resumed"] == 1 and any("resumed" in w for w in final_state["warnings"])
+    assert len(json.loads((r.dir / "result.json").read_text(encoding="utf-8"))["findings"]) == 2
+
+
+def test_resuming_can_never_extend_the_time_limit():
+    """Active time already used counts against the limit, so a resume cannot buy extra minutes."""
+    from harness.runtime import Run
+    calls, crash = {"planner": 0, "s1": 0, "s2": 0}, {"on": True}
+    _two_subtask_script(calls, crash)
+    L = Limits.from_env()
+    L.concurrency, L.max_seconds, L.agent_max_seconds = 1, 100.0, 100.0
+    r = new_run("Review this code.", "samples/buggy_repo", limits=L)
+    try:
+        execute(r)
+    except SimulatedCrash:
+        pass
+    last = read_trace(r.logger.path)[-1]
+    with open(r.logger.path, "a", encoding="utf-8") as f:       # pretend the run had already worked for 500 s
+        f.write(json.dumps({"seq": last["seq"] + 1, "t": 500.0, "ts": time.time(), "run_id": r.run_id,
+                            "agent": "orchestrator", "kind": "note"}) + "\n")
+    crash["on"] = False
+    r2 = Run.resume_from(r.dir, router=Router(provider="script", fallback=None), approval_mode="approve")
+    assert r2.budget.elapsed() >= 500
+    res = execute(r2)
+    st = json.loads((r.dir / "state.json").read_text(encoding="utf-8"))["subtasks"]
+    assert res["status"] == "partial" and st["s2"]["status"] == "skipped", (res["status"], st["s2"])
+    assert "time limit" in st["s2"]["reason"]
+
+
+def test_runs_that_cannot_be_resumed_say_why():
+    from harness.runtime import Run
+    root = Path(tempfile.mkdtemp())
+    try:
+        Run.resume_from(root / "no_such_run")
+        raise AssertionError("expected a refusal")
+    except ValueError as e:
+        assert "cannot be resumed" in str(e) or "nothing to resume" in str(e)
+    (root / "old_run").mkdir()
+    (root / "old_run" / "state.json").write_text('{"goal":"x","status":"running","subtasks":{}}', encoding="utf-8")
+    try:
+        Run.resume_from(root / "old_run")                      # saved before run.json existed
+        raise AssertionError("expected a refusal")
+    except ValueError as e:
+        assert "cannot be resumed" in str(e)
+    # a crash can leave half a line at the end of the trace; reading must survive it
+    p = root / "half.jsonl"
+    p.write_text('{"seq": 1, "t": 0.1}\n{"seq": 2, "t": 0.', encoding="utf-8")
+    assert [e["seq"] for e in read_trace(p)] == [1]
 
 
 def test_all_roles_have_least_privilege():

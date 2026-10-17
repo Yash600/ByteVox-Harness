@@ -138,6 +138,7 @@ details.adv .body{padding:4px 14px 14px;border-top:1px solid var(--line)}
 .node.working{border-color:var(--accent);background:var(--accent-soft);z-index:1}
 .node.working .st{color:var(--accent)}
 .node.done .st{color:var(--ok)}
+.node.paused{border-style:dashed;border-color:var(--warn);background:var(--warn-soft)}.node.paused .st{color:var(--warn)}
 .node.skipped{background:var(--sunken)}.node.skipped h3,.node.skipped p{color:var(--muted)}
 .node h3{margin:6px 0 2px;font-size:15px;font-weight:600}
 .node p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.4}
@@ -419,6 +420,11 @@ async function uploadFiles(files, sel, status) {
   } catch (e) { status.textContent = ''; toast(e.message); }
 }
 
+async function resumeRun() {
+  try { await post('/api/runs/' + cur + '/resume', {}); await openRun(cur); }
+  catch (e) { toast(e.message); }
+}
+
 async function startRun(btn) {
   btn.disabled = true;
   try {
@@ -490,7 +496,9 @@ function renderHead() {
     partial: ['alert', 'Partly finished', `${ok} of ${n} subtasks passed the checker. The rest are flagged below; do not treat this result as complete.`],
     refused: ['ban', "The team can't do this", 'The planner decided the goal needs abilities the harness does not give agents.'],
     failed: ['x', 'The run failed', 'Nothing usable was produced. See the Safety log for what went wrong.'],
-    interrupted: ['alert', 'The run was interrupted', 'The server stopped before it finished. The trace so far is kept.'],
+    interrupted: ['alert', 'The run was interrupted', V.resumable
+      ? 'It stopped before it finished. Click Resume: finished subtasks are kept and only the unfinished ones run again, within the same 15-minute limit.'
+      : 'It stopped before it finished, and it was saved before resume existed. The trace so far is kept.'],
   }[st] || ['alert', st, ''];
   let vcls = st, vv = V_;
   if (st === 'complete' && !replaying && nFind === 0) {
@@ -508,6 +516,7 @@ function renderHead() {
       el('div', {}, el('h1', { text: s.goal }), el('div', { class: 'meta', text: V.run_id + modelNote() })),
       el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
         (V.active && !replaying) ? el('button', { class: 'btn', onclick: () => post('/api/runs/' + cur + '/cancel', {}).catch(e => toast(e.message)) }, icon('stop'), 'Stop run') : null,
+        (V.resumable && !replaying) ? el('button', { class: 'btn primary', onclick: resumeRun }, icon('play'), 'Resume this run') : null,
         (!V.active) ? el('button', { class: 'btn', onclick: () => openRun(cur, true) }, icon('refresh'), replaying ? 'Restart replay' : 'Replay this run') : null)),
     el('div', { class: 'verdict ' + vcls }, el('div', { class: 'ic' }, icon(vv[0])), el('div', {}, el('b', { text: vv[1] }), el('span', { text: vv[2] }),
       reasons.length ? el('ul', { class: 'reasons' }, reasons.map(r => el('li', { text: r }))) : null)));
@@ -546,18 +555,21 @@ function deriveLanes() {
   return lanes;
 }
 function renderTeam() {
-  const st = liveStatus(), finished = !V.active && !replaying && st !== 'running';
+  const st = liveStatus(), finished = !V.active && !replaying && st !== 'running' && st !== 'interrupted';
+  // an interrupted run is PAUSED, not finished: unfinished work is waiting to be resumed
+  const pendingN = replaying ? 0 : Object.values(V.state.subtasks || {}).filter(l => ['queued', 'running', 'working'].includes(l.status)).length;
+  const paused = st === 'interrupted' && pendingN > 0;
   const P = roleCounts('planner'), C = roleCounts('checker'), A = roleCounts('assembler');
   const W0 = roleCounts('worker'), R0 = roleCounts('researcher'), E = roleCounts('editor');
   const W = { s: W0.s + R0.s, e: W0.e + R0.e };   // workers and researchers share one card
-  const state = (c) => c.s === 0 ? (finished ? 'skipped' : 'waiting') : (c.s > c.e && !finished ? 'working' : 'done');
+  const state = (c) => c.s === 0 ? (finished ? 'skipped' : 'waiting') : (c.s > c.e && !finished && !paused ? 'working' : 'done');
   const verdicts = events.filter(e => e.kind === 'verdict');
   const sub = subCounts();
   const wTotal = W.s + E.s, wOpen = (W.s - W.e) + (E.s - E.e);
   const nodes = [
     { n: 'Planner', d: 'Splits the goal into a few independent subtasks. Can only list files.', s: state(P), c: P.s ? 'Plan ready' : '' },
-    { n: 'Workers', d: 'Analysts read files; researchers search the web; editors change files. All report findings with quoted proof.', s: (wOpen && !finished) ? 'working' : (wTotal ? 'done' : (finished ? 'skipped' : 'waiting')), c: wTotal ? ((wOpen && !finished) ? `${wOpen} working now (${wTotal} started)` : `${wTotal} run${wTotal === 1 ? '' : 's'} finished`) : '' },
-    { n: 'Checker', d: 'Code verifies every quote exists in the file; a model judges the rest. Can send work back.', s: state(C), c: verdicts.length ? `${verdicts.filter(v => v.verdict === 'accept').length} approved, ${verdicts.filter(v => v.verdict !== 'accept').length} sent back` : '' },
+    { n: 'Workers', d: 'Analysts read files; researchers search the web; editors change files. All report findings with quoted proof.', s: paused ? 'paused' : (wOpen && !finished) ? 'working' : (wTotal ? 'done' : (finished ? 'skipped' : 'waiting')), c: paused ? `${pendingN} subtask${pendingN === 1 ? '' : 's'} waiting to resume` : wTotal ? ((wOpen && !finished) ? `${wOpen} working now (${wTotal} started)` : `${wTotal} run${wTotal === 1 ? '' : 's'} finished`) : '' },
+    { n: 'Checker', d: 'Code verifies every quote exists in the file; a model judges the rest. Can send work back.', s: paused ? 'paused' : state(C), c: verdicts.length ? `${verdicts.filter(v => v.verdict === 'accept').length} approved, ${verdicts.filter(v => v.verdict !== 'accept').length} sent back` : '' },
     { n: 'Assembler', d: 'Ranks the verified findings and writes the summary. Has no tools at all.', s: state(A), c: '' },
   ];
   const lanes = replaying ? deriveLanes() : (V.state.subtasks || {});
@@ -671,6 +683,8 @@ function sev(e) {
 function sentence(e) {
   switch (e.kind) {
     case 'run_start': return `Run started on ${e.provider}${e.fallback ? ' (fallback: ' + e.fallback + ')' : ''}.`;
+    case 'run_resumed': return `Run RESUMED after an interruption. Kept: ${(e.kept || []).join(', ') || 'nothing'}. Running again: ${(e.redo || []).join(', ') || 'nothing'}.` + (e.seconds_already_used != null ? ` ${e.seconds_already_used}s of the time limit were already used.` : '');
+    case 'demo_crash': return 'DEMO: the process was killed on purpose here to show crash recovery.';
     case 'plan': return `Planned ${e.subtasks.length} subtask${e.subtasks.length === 1 ? '' : 's'}: ${e.subtasks.map(s => s.title).join('; ')}.`;
     case 'agent_start': return `${cap(e.role)} started. Allowed tools: ${(e.tools || []).join(', ') || 'none'}.`;
     case 'llm_call': return `Asked the model (${e.model}). ${fmt(e.input_tokens)} tokens in, ${fmt(e.output_tokens)} out, ${e.seconds}s.` + (e.attempt > 1 ? ` Attempt ${e.attempt}.` : '');

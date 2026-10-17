@@ -9,6 +9,7 @@ finishes, labelled PARTIAL, with the reasons.
 """
 import difflib
 import json
+import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -470,10 +471,11 @@ def normalize_plan(run, plan):
     return subs
 
 
-def _run_subtasks(run, subs):
-    """Run subtasks in dependency order; independent ones run in parallel."""
-    pending = {s["id"]: s for s in subs}
-    done = set()
+def _run_subtasks(run, subs, done=None):
+    """Run subtasks in dependency order; independent ones run in parallel. `done` = ids already
+    finished (a resumed run): they are not run again, and anything that depends on them is unblocked."""
+    done = set(done or [])
+    pending = {s["id"]: s for s in subs if s["id"] not in done}
     while pending:
         ready = [s for s in pending.values() if all(d in done for d in s["after"])]
         if not ready:                       # cannot happen after normalize_plan; never deadlock
@@ -486,6 +488,9 @@ def _run_subtasks(run, subs):
             done.add(s["id"])
 
 
+TERMINAL = ("accepted", "unverified", "unchecked", "failed", "skipped")
+
+
 def _safe_subtask(run, sub):
     """Last line of defence: nothing a subtask does may take the whole run down."""
     try:
@@ -494,12 +499,52 @@ def _safe_subtask(run, sub):
         run.logger.log(f"{KIND_ROLE.get(sub['kind'], 'worker')}-{sub['id']}", "subtask_crashed",
                        error=f"{type(e).__name__}: {e}")
         run.state.update_subtask(sub["id"], status="failed", reason=f"crashed: {e}", findings=[])
+    _demo_crash(run)
+
+
+def _demo_crash(run):
+    """DEMO ONLY: HARNESS_DEMO_CRASH_AFTER=N hard-kills the whole process once N subtasks have finished,
+    so crash recovery can be shown on demand. It does nothing unless that variable is set, and never on a resume."""
+    n = os.environ.get("HARNESS_DEMO_CRASH_AFTER")
+    if not n or run.resumed:
+        return
+    finished = sum(1 for s in run.state.snapshot()["subtasks"].values() if s.get("status") in TERMINAL)
+    if finished >= int(n):
+        run.logger.log("orchestrator", "demo_crash", finished=finished,
+                       note="deliberate hard kill to demonstrate resume; nothing else is saved after this line")
+        os._exit(86)
 
 
 # ------------------------------------------------------------------- whole run
 
+def _resume(run: Run):
+    """Continue an interrupted run: keep every finished subtask, re-run only the unfinished ones.
+    The plan is reused (no second planner call) and the spent budget carries over."""
+    log = run.logger.log
+    snap = run.state.snapshot()
+    subs = snap["plan"]["subtasks"]
+    done = {sid for sid, st in snap["subtasks"].items() if st.get("status") in TERMINAL}
+    redo = [s["id"] for s in subs if s["id"] not in done]
+    log("orchestrator", "run_resumed", kept=sorted(done), redo=redo,
+        seconds_already_used=round(run.budget.elapsed(), 1), calls_already_used=run.budget.calls)
+    run.state.warn("This run was interrupted and resumed. Finished subtasks were kept"
+                   f" ({', '.join(sorted(done)) or 'none'}); {len(redo)} unfinished subtask(s) were re-run.")
+    for sid in redo:
+        run.state.update_subtask(sid, status="queued")
+    _run_subtasks(run, subs, done=done)
+    snap = run.state.snapshot()
+    reasons = [f"{sid} ({st.get('title')}): {st['status']} - {st.get('reason', '')}"
+               for sid, st in snap["subtasks"].items() if st["status"] != "accepted"]
+    return _finish(run, "complete" if not reasons else "partial", reasons, subs)
+
+
 def execute(run: Run):
     log = run.logger.log
+    if run.resumed:
+        if (run.state.snapshot().get("plan") or {}).get("subtasks"):
+            return _resume(run)
+        log("orchestrator", "run_resumed", kept=[], redo=["(planning)"],
+            note="the run stopped before it had a plan, so it starts again from planning")
     log("orchestrator", "run_start", goal=run.goal, limits=vars(run.limits),
         provider=run.router.primary, fallback=run.router.fallback)
     reasons = []

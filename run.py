@@ -2,7 +2,9 @@
     python run.py "Review this repo for bugs and security issues" --input samples/buggy_repo
 """
 import argparse
+import os
 import sys
+from pathlib import Path
 
 from harness import config
 from harness.config import HARD_TIME_LIMIT, Limits
@@ -21,7 +23,7 @@ def live(ev):
         line = f"tool {ev['tool']} {ev['args']} ok={ev['ok']}"
     elif k in ("llm_error", "retry_wait", "tool_denied", "injection_flagged", "budget_exceeded",
                "verdict", "evidence_check", "invalid_output", "fallback", "approval_result",
-               "subtask_failed", "loop_limit", "refused", "run_end", "plan"):
+               "subtask_failed", "loop_limit", "refused", "run_end", "plan", "run_resumed", "demo_crash"):
         line = f"{k.upper()} " + ", ".join(f"{x}={str(v)[:90]}" for x, v in ev.items()
                                           if x not in ("seq", "t", "ts", "run_id", "agent", "kind"))
     else:
@@ -31,7 +33,10 @@ def live(ev):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("goal")
+    ap.add_argument("goal", nargs="?", help="what to do (not needed with --resume)")
+    ap.add_argument("--resume", metavar="RUN_ID", help="continue an interrupted run from its saved state")
+    ap.add_argument("--demo-crash-after", type=int, metavar="N",
+                    help="DEMO ONLY: hard-kill the process after N subtasks finish, to show --resume")
     ap.add_argument("--input", help="folder the agents may read/edit (copied into the run)")
     ap.add_argument("--provider", choices=["ollama", "groq"])
     ap.add_argument("--fallback", choices=["ollama", "groq"])
@@ -56,11 +61,25 @@ def main():
     limits.max_seconds = min(limits.max_seconds, HARD_TIME_LIMIT)
     limits.agent_max_seconds = min(limits.agent_max_seconds, limits.max_seconds)
 
-    router = Router(provider=a.provider, fallback=a.fallback, chaos_rate=a.chaos, seed=7)
-    run = Run(a.goal, input_dir=a.input, runs_root="runs", run_id=a.run_id, limits=limits,
-              router=router, approval_mode=a.approve)
+    if a.demo_crash_after:
+        os.environ["HARNESS_DEMO_CRASH_AFTER"] = str(a.demo_crash_after)
+        print(f"DEMO: this process will be killed on purpose after {a.demo_crash_after} subtask(s) finish.\n"
+              f"      Afterwards continue it with:  python run.py --resume <run id>\n")
+    if a.resume:
+        router = (Router(provider=a.provider, fallback=a.fallback) if a.provider else None)
+        try:
+            run = Run.resume_from(Path("runs") / a.resume, router=router, approval_mode=a.approve)
+        except ValueError as e:
+            sys.exit(f"cannot resume: {e}")
+        print(f"RESUMING {run.run_id}: finished subtasks are kept, only unfinished ones run again\n")
+    else:
+        if not a.goal:
+            sys.exit("give a goal, or use --resume <run id>")
+        router = Router(provider=a.provider, fallback=a.fallback, chaos_rate=a.chaos, seed=7)
+        run = Run(a.goal, input_dir=a.input, runs_root="runs", run_id=a.run_id, limits=limits,
+                  router=router, approval_mode=a.approve)
     run.logger.listeners.append(live)
-    print(f"run {run.run_id}  provider={router.primary}  dir={run.dir}\n")
+    print(f"run {run.run_id}  provider={run.router.primary}  dir={run.dir}\n")
     res = execute(run)
     print("\n" + "=" * 70 + f"\nSTATUS: {res['status'].upper()}")
     for r in res["reasons"]:

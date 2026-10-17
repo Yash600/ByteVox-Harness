@@ -88,7 +88,7 @@ chooses a *kind* per subtask (`analyze`, `research`, `edit`) and optional depend
 | 7 | Untrusted content | Everything read is wrapped in `<untrusted_data>`, instruction-like text is flagged and logged, and **the defence is structural**: even an obeying model cannot call a tool it was not given. Demo: `examples/15_prompt_injection_flagged`. |
 | 8 | Logging | `trace.jsonl`: agent, full prompt, tool call, result, tokens, seconds, for every step. UI has Activity, Safety log and Replay; CLI has `replay.py`. |
 
-Optional extra chosen: **human-approval screen** (the approval card in the UI).
+Optional extra chosen: **resuming a run after a crash** (see below). The human-approval screen is part of requirement 6 and is shown in the UI too.
 
 ## Limits and caps
 
@@ -179,6 +179,29 @@ A third, found by testing on a fresh project nobody had tuned for (`examples/20_
 Other failures that shaped the design (all with traces in `examples/`): workers returning zero findings to escape rejection and the run saying
 COMPLETE (11); a daily token quota retried every minute for 9 minutes (12); a small model refusing a doable task (13).
 
+## Optional extra: resume after a crash
+
+A run is saved after every step, so if the process dies (power cut, a server restart, a kill) nothing finished is lost.
+
+- **What is kept:** every finished subtask, the plan (no second planner call), the whole trace (numbering and run clock continue),
+  and the model calls already spent.
+- **What re-runs:** only the unfinished subtasks, and any edit that depends on them.
+- **It cannot extend the limits.** Time already used counts against the 15-minute ceiling and calls against the call budget
+  (`test_resuming_can_never_extend_the_time_limit`). Downtime itself is not counted.
+- **Where:** a **Resume this run** button on any interrupted run in the page, or `python run.py --resume <run_id>`.
+  Runs saved before this existed have no `run.json` and are labelled as not resumable.
+
+Demo, with a real model: `--demo-crash-after N` hard-kills the process (exit code 86) once N subtasks have finished, then resume it.
+
+```bash
+python run.py "<goal>" --input <folder> --provider groq --run-id demo --demo-crash-after 1
+python run.py --resume demo --provider groq
+```
+
+Measured: a 14-ticket triage was killed while subtask s1 was mid-run and s2 was already approved. Resume kept s2, re-ran only s1,
+did not plan again, carried the clock over (183 s to 306 s, 11 to 17 model calls) and finished COMPLETE with all 14 urgencies correct
+(`examples/21_resume_after_crash_14_tickets`). Known limit: a subtask that was mid-run restarts from its beginning, not from its last step.
+
 ## Decisions and trade-offs
 
 - **Code does the checking, the model does the judging.** Whether a quote exists is a string match; asking a model costs tokens and can be wrong.
@@ -194,7 +217,6 @@ COMPLETE (11); a daily token quota retried every minute for 9 minutes (12); a sm
 
 ## What I cut for time
 
-- **Resume after a crash.** Runs live in threads of the server process, so restarting the server interrupts a run (it shows as "interrupted"; the trace so far is kept).
 - **Cost-aware model routing.** Roles have "fast"/"strong" tiers in `config.py`, but both default to the same model.
 - **Line-by-line coverage tracking** for reviews (a ledger proving every chunk was read) and a **cross-subtask consistency check** (one triage ticket can still get two urgencies).
 - **MCP exposure.** Not built.
@@ -232,7 +254,7 @@ harness/
   safety.py         untrusted-data wrapping, injection flags, approval gate
   baseline.py       the single-agent baseline     rubric.py   the scoring rubric
   budget.py logger.py state.py config.py
-tests/              test_flows.py (25), test_rubric.py (6), test_compare.py (1): scripted model, no network
+tests/              test_flows.py (28), test_rubric.py (6), test_compare.py (1): scripted model, no network
 samples/            buggy_repo (6 planted issues), injection_repo, notes (3 tickets)
 comparison/         results and tables          examples/   19 curated run traces with an INDEX
 ```

@@ -144,8 +144,14 @@ def start_run(body):
     router = Router(provider=provider, fallback=fallback, chaos_rate=chaos, seed=7)
     run = Run(goal, input_dir=input_dir, runs_root=str(RUNS),
               run_id=run_id, limits=L, router=router, approval_mode="external")
+    _launch(run)
+    return run_id
+
+
+def _launch(run):
+    """Run a (new or resumed) run in a background thread and track it."""
     run.done = False
-    ACTIVE[run_id] = run
+    ACTIVE[run.run_id] = run
 
     def work():
         try:
@@ -156,7 +162,28 @@ def start_run(body):
         finally:
             run.done = True
 
-    threading.Thread(target=work, daemon=True, name=run_id).start()
+    threading.Thread(target=work, daemon=True, name=run.run_id).start()
+
+
+def is_resumable(run_id):
+    """An interrupted run (marked 'running' on disk, but nothing is running it) that saved its settings."""
+    d = RUNS / run_id
+    live = ACTIVE.get(run_id)
+    try:
+        status = json.loads((d / "state.json").read_text(encoding="utf-8")).get("status")
+    except (OSError, json.JSONDecodeError):
+        return False
+    return status == "running" and not (live and not live.done) and (d / "run.json").exists()
+
+
+def resume_run(run_id):
+    if not is_resumable(run_id):
+        raise ValueError("this run cannot be resumed: it is not interrupted, or it was saved before resume existed")
+    meta = json.loads((RUNS / run_id / "run.json").read_text(encoding="utf-8"))
+    if meta.get("provider") == "groq" and not os.environ.get("GROQ_API_KEY"):
+        raise ValueError("GROQ_API_KEY is not set in the environment of the server process")
+    router = Router(provider=meta.get("provider"), fallback=meta.get("fallback"))
+    _launch(Run.resume_from(RUNS / run_id, router=router, approval_mode="external"))
     return run_id
 
 
@@ -186,6 +213,7 @@ def run_view(run_id, after):
     if status == "running" and not active:
         status = "interrupted"
     out = {"run_id": run_id, "state": state, "status": status, "active": active,
+           "resumable": is_resumable(run_id),
            "events": events, "pending": live.approver.list_pending() if live else []}
     if live:
         out["budget"] = live.budget.snapshot()
@@ -290,6 +318,8 @@ class Handler(BaseHTTPRequestHandler):
             body = self._body()
             if parts == ["api", "runs"]:
                 return self._send(200, {"run_id": start_run(body)})
+            if len(parts) == 4 and parts[:2] == ["api", "runs"] and ID_RE.match(parts[2]) and parts[3] == "resume":
+                return self._send(200, {"run_id": resume_run(parts[2])})
             if len(parts) == 4 and parts[:2] == ["api", "runs"] and ID_RE.match(parts[2]):
                 run = ACTIVE.get(parts[2])
                 if not run:

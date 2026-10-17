@@ -13,6 +13,19 @@ class RunState:
                      "warnings": [], "report_path": None}
         self._save()
 
+    @classmethod
+    def load(cls, run_dir):
+        """Reopen the state of an interrupted run instead of starting a fresh one."""
+        self = cls.__new__(cls)
+        self.path = Path(run_dir) / "state.json"
+        self._lock = threading.Lock()
+        with open(self.path, encoding="utf-8") as f:
+            self.data = json.load(f)
+        self.data["status"] = "running"
+        self.data["resumed"] = self.data.get("resumed", 0) + 1
+        self._save()
+        return self
+
     def _save(self):
         tmp = str(self.path) + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:

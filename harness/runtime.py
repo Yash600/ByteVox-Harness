@@ -27,14 +27,22 @@ class AgentFailed(Exception):
 
 class Run:
     def __init__(self, goal, input_dir=None, runs_root="runs", run_id=None, limits=None,
-                 router=None, approval_mode="ask"):
+                 router=None, approval_mode="ask", resume=False):
         self.goal = goal
+        self.resumed = bool(resume)
         self.run_id = run_id or time.strftime("run_%Y%m%d_%H%M%S")
         self.dir = Path(runs_root).resolve() / self.run_id
+        if resume and not (self.dir / "state.json").exists():
+            raise ValueError(f"nothing to resume: no saved run named {self.run_id}")
         self.dir.mkdir(parents=True, exist_ok=True)
         # Agents work on a COPY of the input, so even approved edits never touch the original.
         self.workspace = self.dir / "workspace"
-        if input_dir:
+        if resume:
+            self.workspace.mkdir(exist_ok=True)               # keep everything agents already did
+            meta = self._read_meta(self.dir)
+            orig = meta.get("original")
+            self.original = Path(orig) if orig and Path(orig).exists() else None
+        elif input_dir:
             shutil.copytree(input_dir, self.workspace, dirs_exist_ok=True)
             self.original = Path(input_dir).resolve()
         else:
@@ -44,14 +52,55 @@ class Run:
         self.limits = limits or Limits.from_env()
         L = self.limits
         self.budget = Budget("run", L.max_llm_calls, L.max_seconds, L.max_tokens)
-        self.logger = RunLogger(self.dir, self.run_id)
-        self.state = RunState(self.dir, goal)
+        self.logger = RunLogger(self.dir, self.run_id, resume=resume)
+        self.state = RunState.load(self.dir) if resume else RunState(self.dir, goal)
         self.router = router or Router()
         self.approver = ApprovalGate(approval_mode, logger=self.logger)
         self.cancel = threading.Event()
         self.stats = {"retries": 0, "llm_errors": 0, "injections_flagged": 0, "tool_denied": 0,
                       "fallbacks": 0}
         self._stats_lock = threading.Lock()
+        if resume:
+            self._restore_budget()
+        else:
+            self._write_meta()
+
+    # --------------------------------------------------------- crash recovery
+    @staticmethod
+    def _read_meta(run_dir):
+        p = Path(run_dir) / "run.json"
+        if not p.exists():
+            raise ValueError("this run was saved before resume existed (no run.json), so it cannot be resumed")
+        return json.loads(p.read_text(encoding="utf-8"))
+
+    def _write_meta(self):
+        """Everything needed to reopen this run later: goal, model settings, limits, original input."""
+        meta = {"goal": self.goal, "run_id": self.run_id, "provider": self.router.primary,
+                "fallback": self.router.fallback, "limits": vars(self.limits),
+                "original": str(self.original) if self.original else None, "started": time.time()}
+        (self.dir / "run.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+    def _restore_budget(self):
+        """Carry the spent budget over, so resuming can never extend the limits (15 minutes included)."""
+        from .logger import read_trace
+        for ev in read_trace(self.logger.path):
+            if ev["kind"] == "llm_call":
+                self.budget.calls += 1
+                self.budget.tokens += int(ev.get("input_tokens", 0)) + int(ev.get("output_tokens", 0))
+        self.budget.start -= self.logger.resumed_at          # active time already used; downtime is not counted
+
+    @classmethod
+    def resume_from(cls, run_dir, router=None, approval_mode="ask"):
+        """Reopen an interrupted run from its folder."""
+        d = Path(run_dir)
+        meta = cls._read_meta(d)
+        limits = Limits()
+        for k, v in meta.get("limits", {}).items():
+            if hasattr(limits, k):
+                setattr(limits, k, v)
+        router = router or Router(provider=meta.get("provider"), fallback=meta.get("fallback"))
+        return cls(meta["goal"], runs_root=d.parent, run_id=d.name, limits=limits, router=router,
+                   approval_mode=approval_mode, resume=True)
 
     def bump(self, key):
         with self._stats_lock:

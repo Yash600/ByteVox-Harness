@@ -172,14 +172,17 @@ dollars are $0. Full tables: `comparison/COMPARISON.md`, `comparison/COMPARISON_
 
 ## The run that went wrong, and what changed
 
-In the hosted research comparison the team ended **PARTIAL** (`examples/05_research_hosted_multi_PARTIAL`) although its answer scored 15/15.
-The trace shows why: the **checker agent spent all 6 of its steps** re-reading pages that code had *already* verified, hit its step limit
-and never returned a verdict, so subtask s1 was marked "unchecked".
+**The headline example: the research comparison run** (`examples/05_research_hosted_multi_PARTIAL`).
 
-What the harness did: it stopped that agent cleanly, kept the findings (all quotes verified), let the other subtask finish, labelled the whole
-result PARTIAL with the exact reason, and logged everything. What I changed: the checker now has its own 3-step cap, is forced to give a
-verdict on its last step, and its prompt says the quotes are already proven. `test_a_checker_that_wanders_cannot_stall_the_run` reproduces the
-failure with a scripted model. I did not re-measure it live, to save tokens, so the table above shows the pre-fix behaviour.
+- **What went wrong.** The team's answer scored 15/15, but the run ended **PARTIAL**. The checker agent spent **all 6 of its steps**
+  re-reading pages that code had *already* verified, hit its step limit, and never returned a verdict, so subtask s1 was marked "unchecked".
+- **What the harness did.** It stopped that one agent cleanly, kept the findings (every quote was verified), let the other subtask finish,
+  labelled the whole result PARTIAL with the exact reason, and logged every step. Nothing crashed and nothing was hidden.
+- **What I changed.** The checker now has its own 3-step cap, is forced to give a verdict on its last step, and its prompt says the quotes
+  are already proven. `test_a_checker_that_wanders_cannot_stall_the_run` reproduces the failure with a scripted model.
+- **How I know it worked, live.** The failing run had a checker call that used 6 steps. In later real runs after the fix the checker used
+  at most 3 steps in every call (the library-app review: 1, 1, 3, 3, 1, 1, 1, 1; the 14-ticket triage: 1, 1, 1). I did not re-run the
+  research comparison itself, so its row in the table above still shows the pre-fix behaviour.
 
 A second real-use bug: on an open web question (`examples/18_open_question_web_research`) the checker kept rejecting correct quotes, because my HTML-to-text step put every link on its own line (`herbal medicines , special diets`), so a sentence copied naturally failed the exact-match check. Sentences are now kept whole, and the match ignores formatting-only differences (citation markers like `[12]`, spaces before punctuation, curly quotes) while the words themselves must still match exactly; `test_web_text_keeps_sentences_whole_and_natural_quotes_verify` covers it.
 

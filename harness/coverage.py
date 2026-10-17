@@ -26,7 +26,9 @@ SOURCE_EXT = {".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".java", ".go
               ".cs", ".rb", ".php", ".sh", ".sql"}
 SKIP_PARTS = {".git", "__pycache__", "node_modules", ".venv", "venv", "dist", "build", "_harness_web", "repos_cache"}
 MAX_FILE_BYTES = 120_000
-GROUP_FILES, GROUP_BYTES, MAX_GROUPS = 4, 14_000, 3
+# A worker's reply is capped at 5 findings (output-token limits), so a pass over 4 files could only ever add 5.
+# Two files per pass gives each file its own quota. (First live run: 4 files per pass added 2 findings in total.)
+GROUP_FILES, GROUP_BYTES, MAX_GROUPS = 2, 10_000, 4
 MIN_BUDGET_LEFT = 0.3          # do not start the second look when less than this share of any budget remains
 NEAR = 2                       # a finding within this many lines of a scan hit covers it
 

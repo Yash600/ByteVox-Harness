@@ -134,6 +134,7 @@ answer key is not in the repo either). Scoring is by code: an issue counts only 
 | Team, first run (before fixes) | 9 | 100% | 0 | 12.2 |
 | Team, second run (after fixes) | **17** | 100% | 0 | **14.2** |
 | Team, third run (same code, COMPLETE, all workers finished) | 12 | 100% | 0 | 13.0 |
+| Team, with the coverage stage (live, COMPLETE in 603 s, 23 calls) | 15 | 100% | 0 | 13.8 |
 
 - **The rule scan finds the pattern bugs** (hardcoded secrets, MD5, SQL injection, `shell=True`, `eval`, `innerHTML`, bare `except`) but
   **none of the logic bugs**. Only the model found the timing-unsafe compare, the pagination off-by-one, the wrong-sign late fee, the unchecked

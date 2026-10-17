@@ -1,0 +1,64 @@
+{
+  "status": "complete",
+  "reasons": [],
+  "summary": "Ticket 3 is triaged as high urgency in the Availability category due to a login outage blocking the entire team [s2.f1]. Ticket 1 is triaged as high urgency in the billing category because a customer was billed twice and the finance books close Friday [s1.f1]. Ticket 2 is triaged as low urgency in the feature-request category as the customer explicitly stated the CSV export request is not urgent [s1.f2].",
+  "findings": [
+    {
+      "title": "Ticket 3: High urgency - login outage (Availability)",
+      "severity": "high",
+      "category": "Availability",
+      "detail": "Post-update login 500 errors block the entire team; user requests escalation as critical.",
+      "evidence": [
+        {
+          "file": "ticket_03.txt",
+          "quote": "Since yesterday's update the login page shows error 500 for every attempt. Our whole team is blocked.",
+          "verified": true,
+          "line": 3,
+          "support": "ok"
+        }
+      ],
+      "id": "s2.f1",
+      "subtask": "s2",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Ticket 1: Duplicate billing - high urgency",
+      "severity": "high",
+      "category": "billing",
+      "detail": "Customer billed twice for invoice 4471; finance books close Friday, making it time-sensitive.",
+      "evidence": [
+        {
+          "file": "ticket_01.txt",
+          "quote": "This is urgent, our finance team closes the books on Friday.",
+          "verified": true,
+          "line": 4,
+          "support": "ok"
+        }
+      ],
+      "id": "s1.f1",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Ticket 2: CSV export feature request - low urgency",
+      "severity": "low",
+      "category": "feature-request",
+      "detail": "Customer requests CSV export of dashboard reports; explicitly stated as not urgent.",
+      "evidence": [
+        {
+          "file": "ticket_02.txt",
+          "quote": "Not urgent, just a nice to have.",
+          "verified": true,
+          "line": 3,
+          "support": "ok"
+        }
+      ],
+      "id": "s1.f2",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    }
+  ]
+}

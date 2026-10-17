@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ByteVox Harness</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- tokens ---------- */
+:root{
+  --bg:#f6f5f1; --surface:#ffffff; --sunken:#efede7; --ink:#1a1d21; --ink-2:#3d444d; --muted:#5d6570;
+  --line:#e2dfd6; --line-2:#cfcbc0;
+  --accent:#1f47d6; --accent-ink:#ffffff; --accent-soft:#e6ebfc;
+  --ok:#17794f; --ok-soft:#e2f3ea; --warn:#9a5a00; --warn-soft:#fbefd9;
+  --bad:#b4232c; --bad-soft:#fbe6e6; --info:#1f47d6; --info-soft:#e6ebfc;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r:8px; --rail:272px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#101214; --surface:#171a1d; --sunken:#1d2125; --ink:#ebe9e3; --ink-2:#c3c6cb; --muted:#99a0a9;
+    --line:#2a2f35; --line-2:#3a4048;
+    --accent:#86a0ff; --accent-ink:#0c1020; --accent-soft:#1c2542;
+    --ok:#52c796; --ok-soft:#14302a; --warn:#eeb050; --warn-soft:#352a12;
+    --bad:#ff8087; --bad-soft:#3a1c1f; --info:#86a0ff; --info-soft:#1c2542;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono)}
+svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:var(--rail) minmax(0,1fr);min-height:100vh}
+.rail{border-right:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;height:100vh;position:sticky;top:0}
+.brand{padding:20px 20px 14px}
+.brand b{display:block;font-size:16px;font-weight:600;letter-spacing:-.01em}
+.brand span{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.rail .new{margin:0 14px 12px}
+.rail h6{margin:10px 20px 6px;font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.runs{overflow:auto;padding:0 8px 16px;flex:1}
+.run{display:block;width:100%;text-align:left;background:none;border:0;border-radius:var(--r);padding:9px 12px;cursor:pointer;border-left:3px solid transparent}
+.run:hover{background:var(--sunken)}
+.run.sel{background:var(--accent-soft);border-left-color:var(--accent)}
+.run .g{display:block;font-size:13.5px;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.run .m{display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.complete{background:var(--ok)} .dot.partial,.dot.interrupted{background:var(--warn)}
+.dot.failed,.dot.refused{background:var(--bad)} .dot.running{background:var(--accent);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.dot.running{animation:none}.bar i{transition:none!important}}
+main{padding:32px 40px 64px;max-width:1120px;width:100%}
+
+/* ---------- controls ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;justify-content:center;border:1px solid var(--line-2);background:var(--surface);border-radius:var(--r);padding:8px 14px;cursor:pointer;font-weight:500;min-height:38px}
+.btn:hover{border-color:var(--ink-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ---------- section scaffolding ---------- */
+.sec{margin-top:28px}
+.sec-h{display:flex;align-items:baseline;gap:12px;margin:0 0 10px}
+.sec-h h2{margin:0;font:500 11.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sec-h .rule{flex:1;border-top:1px solid var(--line)}
+.sec-h .hint{font-size:12.5px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.pad{padding:18px 20px}
+
+/* ---------- composer ---------- */
+.hero h1{font-size:28px;line-height:1.2;letter-spacing:-.02em;margin:0 0 6px;font-weight:600}
+.hero p{margin:0;color:var(--ink-2);max-width:62ch}
+.step{display:grid;grid-template-columns:34px minmax(0,1fr);gap:14px;padding:20px 0;border-top:1px solid var(--line)}
+.step:first-of-type{border-top:0}
+.step .n{width:26px;height:26px;border-radius:50%;border:1px solid var(--line-2);display:grid;place-items:center;font:500 12px var(--mono);color:var(--muted)}
+.step h3{margin:0 0 2px;font-size:15px;font-weight:600}
+.step .lead{margin:0 0 10px;color:var(--muted);font-size:13.5px}
+textarea,select,input[type=number]{width:100%;background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);padding:10px 12px}
+textarea{min-height:104px;resize:vertical;font-size:15px}
+.examples{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:10px}
+.ex{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;cursor:pointer}
+.ex:hover{border-color:var(--accent)}
+.ex b{display:block;font-size:13.5px;font-weight:600}
+.ex span{display:block;font-size:12.5px;color:var(--muted);line-height:1.4;margin-top:2px}
+.choice{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.opt{position:relative;display:block;border:1px solid var(--line-2);border-radius:var(--r);padding:12px 14px;cursor:pointer;background:var(--surface)}
+.opt input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.opt:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:var(--accent-soft)}
+.opt:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.opt:has(input:disabled){opacity:.55;cursor:not-allowed}
+.opt b{display:block;font-weight:600}.opt span{display:block;color:var(--muted);font-size:13px}
+details.adv{margin-top:14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+details.adv summary{cursor:pointer;padding:10px 14px;font-weight:500}
+details.adv .body{padding:4px 14px 14px;border-top:1px solid var(--line)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:10px}
+.grid2 label{font-size:13px;color:var(--ink-2);display:block;margin-bottom:4px}
+.grid2 small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+
+/* ---------- run header ---------- */
+.rh{display:flex;gap:16px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+.rh h1{margin:0;font-size:22px;line-height:1.3;letter-spacing:-.015em;font-weight:600;max-width:52ch}
+.rh .meta{font:12px var(--mono);color:var(--muted);margin-top:6px}
+.verdict{display:flex;gap:14px;align-items:center;margin-top:16px;padding:14px 18px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+.verdict .ic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
+.verdict .ic svg{width:18px;height:18px}
+.verdict b{display:block;font-size:16px;font-weight:600}
+.verdict span{color:var(--ink-2);font-size:14px}
+.verdict.complete{border-color:var(--ok);background:var(--ok-soft)} .verdict.complete .ic{background:var(--ok);color:#fff}
+.verdict.partial,.verdict.interrupted{border-color:var(--warn);background:var(--warn-soft)} .verdict.partial .ic,.verdict.interrupted .ic{background:var(--warn);color:#fff}
+.verdict.failed,.verdict.refused{border-color:var(--bad);background:var(--bad-soft)} .verdict.failed .ic,.verdict.refused .ic{background:var(--bad);color:#fff}
+.verdict.running{border-color:var(--accent);background:var(--accent-soft)} .verdict.running .ic{background:var(--accent);color:var(--accent-ink)}
+.reasons{margin:8px 0 0;padding-left:20px;font-size:13.5px;color:var(--ink-2)}
+
+/* ---------- attention (approval) ---------- */
+.attn{border:2px solid var(--warn);background:var(--warn-soft);border-radius:10px;padding:16px 18px;margin-top:20px}
+.attn h3{margin:0 0 4px;font-size:15px;color:var(--warn);display:flex;gap:8px;align-items:center}
+.attn p{margin:0 0 10px;color:var(--ink-2);font-size:14px}
+.attn pre{margin:0 0 12px;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);font:12.5px/1.5 var(--mono);overflow:auto;max-height:240px;white-space:pre-wrap}
+.attn .btns{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ---------- team pipeline ---------- */
+.team{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;position:relative}
+@media (max-width:900px){.team{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+.node{padding:14px 16px;border:1px solid var(--line);background:var(--surface);position:relative}
+.node:first-child{border-radius:10px 0 0 10px}.node:last-child{border-radius:0 10px 10px 0}
+.node + .node{margin-left:-1px}
+@media (max-width:900px){.node,.node:first-child,.node:last-child{border-radius:10px;margin-left:0}}
+.node .st{display:flex;align-items:center;gap:7px;font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.node.working{border-color:var(--accent);background:var(--accent-soft);z-index:1}
+.node.working .st{color:var(--accent)}
+.node.done .st{color:var(--ok)}
+.node.skipped{background:var(--sunken)}.node.skipped h3,.node.skipped p{color:var(--muted)}
+.node h3{margin:6px 0 2px;font-size:15px;font-weight:600}
+.node p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.4}
+.node .cnt{margin-top:8px;font-size:13px;color:var(--ink-2)}
+.subs{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-top:12px}
+.sub{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px 14px;border-left:3px solid var(--line-2)}
+.sub.accepted{border-left-color:var(--ok)}.sub.working,.sub.running{border-left-color:var(--accent)}
+.sub.unverified,.sub.unchecked{border-left-color:var(--warn)}.sub.failed,.sub.skipped{border-left-color:var(--bad)}
+.sub .h{display:flex;justify-content:space-between;gap:8px;align-items:center;font:500 11.5px var(--mono);color:var(--muted)}
+.sub .t{font-weight:600;margin:4px 0 2px;font-size:14px;line-height:1.35}
+.sub .a{font-size:12.5px;color:var(--muted);min-height:18px}
+.tag{display:inline-block;font:500 11px var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:var(--sunken);color:var(--ink-2)}
+.tag.accepted,.tag.complete{background:var(--ok-soft);color:var(--ok)}
+.tag.unverified,.tag.unchecked,.tag.partial{background:var(--warn-soft);color:var(--warn)}
+.tag.failed,.tag.skipped,.tag.refused{background:var(--bad-soft);color:var(--bad)}
+.tag.working,.tag.running,.tag.queued{background:var(--info-soft);color:var(--info)}
+
+/* ---------- limits ---------- */
+.limits{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:700px){.limits{grid-template-columns:1fr}}
+.lim{padding:14px 16px}
+.lim .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.lim .top span{font-size:13px;color:var(--muted)}
+.lim .top b{font:500 15px var(--mono)}
+.lim .top b small{color:var(--muted);font-weight:400}
+.bar{height:6px;background:var(--sunken);border-radius:9px;margin-top:10px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:9px;transition:width .5s}
+.bar i.hot{background:var(--bad)}
+.counters{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:12px;font-size:13px;color:var(--muted)}
+.counters b{color:var(--ink);font-weight:600}
+.counters .alert b{color:var(--warn)}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow:auto}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:10px 14px;cursor:pointer;color:var(--muted);font-weight:500;white-space:nowrap;margin-bottom:-1px;display:flex;gap:8px;align-items:center}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .c{font:500 11px var(--mono);background:var(--sunken);color:var(--ink-2);padding:1px 7px;border-radius:99px}
+.tab .c.hot{background:var(--warn-soft);color:var(--warn)}
+
+/* ---------- result ---------- */
+.summary{padding:18px 22px;font-size:15.5px;line-height:1.65}
+.summary h4{margin:0 0 6px;font:500 11.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.finding{display:grid;grid-template-columns:56px minmax(0,1fr);border:1px solid var(--line);background:var(--surface);border-radius:10px;overflow:hidden;margin-top:10px}
+.finding .rk{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:16px;gap:6px;border-right:1px solid var(--line);background:var(--sunken)}
+.finding .rk b{font:500 15px var(--mono)}
+.sev{font:500 10px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}
+.chip{font:500 11.5px var(--mono);padding:2px 9px;border-radius:99px;background:var(--sunken);color:var(--ink-2);border:1px solid var(--line)}
+.chip.good{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.evsrc{padding:4px 10px;font:12px var(--mono);border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.evsrc a{color:var(--accent)}
+.sev.info{background:var(--info-soft);color:var(--info)}
+.sev.high{background:var(--bad-soft);color:var(--bad)}.sev.medium{background:var(--warn-soft);color:var(--warn)}.sev.low{background:var(--sunken);color:var(--ink-2);border:1px solid var(--line-2)}
+.finding .bd{padding:14px 18px}
+.finding h3{margin:0 0 4px;font-size:15.5px;font-weight:600;line-height:1.35}
+.finding p{margin:0 0 10px;color:var(--ink-2);font-size:14.5px}
+.ev{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:8px}
+.ev .evh{display:flex;justify-content:space-between;gap:10px;padding:5px 10px;background:var(--sunken);font:12px var(--mono);color:var(--ink-2);border-bottom:1px solid var(--line)}
+.ev .evh .v{color:var(--ok);display:flex;gap:5px;align-items:center}.ev .evh .v.no{color:var(--bad)}
+.ev code{display:block;padding:8px 12px;font:12.5px/1.55 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;background:var(--surface)}
+.notice{display:flex;gap:8px;align-items:center;margin-top:10px;padding:8px 12px;border-radius:var(--r);background:var(--warn-soft);color:var(--warn);font-size:13px}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+table.t td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t tr:last-child td{border-bottom:0}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+
+/* ---------- activity ---------- */
+.tools{display:flex;gap:14px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--muted)}
+.tools label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.log{max-height:640px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.row{display:grid;grid-template-columns:58px 132px minmax(0,1fr);gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);border-left:3px solid transparent;font-size:13.5px}
+.row:last-child{border-bottom:0}
+.row.bad{border-left-color:var(--bad);background:var(--bad-soft)}.row.warn{border-left-color:var(--warn);background:var(--warn-soft)}.row.good{border-left-color:var(--ok)}
+.row .tm{font:12px var(--mono);color:var(--muted);padding-top:1px}
+.row .who{font:500 12px var(--mono);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .who i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:6px;background:var(--muted)}
+.r-researcher i{background:#0891b2}.r-ingest i{background:#64748b}.r-planner i{background:#8b5cf6}.r-worker i{background:#2f6bff}.r-editor i{background:#d98a00}.r-checker i{background:#0f9d76}.r-assembler i{background:#d6338a}
+.row .tx{min-width:0;overflow-wrap:anywhere}
+.row .tx .mu{color:var(--muted)}
+.row .more{background:none;border:0;color:var(--accent);cursor:pointer;padding:0 0 0 8px;font-size:12.5px}
+.row pre{margin:8px 0 2px;padding:10px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);overflow:auto;max-height:340px;font:12px/1.5 var(--mono);white-space:pre-wrap}
+
+/* ---------- safety ---------- */
+.sg{display:grid;gap:10px}
+.sf{display:grid;grid-template-columns:40px minmax(0,1fr);gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.sf .ic{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--sunken);color:var(--ink-2)}
+.sf.bad .ic{background:var(--bad-soft);color:var(--bad)}.sf.warn .ic{background:var(--warn-soft);color:var(--warn)}.sf.good .ic{background:var(--ok-soft);color:var(--ok)}
+.sf b{display:block;font-size:14.5px;font-weight:600}
+.sf p{margin:2px 0 0;font-size:13.5px;color:var(--ink-2);overflow-wrap:anywhere}
+.sf .by{margin-top:6px;font:12px var(--mono);color:var(--muted)}
+.diff{font:12.5px/1.55 var(--mono);white-space:pre;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:6px 0}
+.diff div{padding:0 14px}.diff .add{background:var(--ok-soft);color:var(--ok)}.diff .del{background:var(--bad-soft);color:var(--bad)}.diff .hd{color:var(--muted)}
+
+.toast{position:fixed;bottom:18px;right:18px;background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:var(--r);max-width:420px;z-index:30;font-size:14px}
+.loading{color:var(--muted);padding:30px}
+
+/* ---------- small screens ---------- */
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .runs{max-height:180px}
+  main{padding:20px 16px 48px}
+  .row{grid-template-columns:48px minmax(0,1fr)}
+  .row .who{grid-column:2;order:2;font-size:11px}
+  .row .tx{grid-column:1 / -1;order:3}
+  .finding{grid-template-columns:44px minmax(0,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" aria-label="Runs">
+    <div class="brand"><b>ByteVox Harness</b><span>A team of AI agents with limits, checks and a full record.</span></div>
+    <button class="btn primary new" id="newBtn"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New run</button>
+    <h6>Your runs</h6>
+    <div class="runs" id="runs"></div>
+  </aside>
+  <main id="main" tabindex="-1"></main>
+</div>
+
+<script>
+"use strict";
+/* =================================================================== helpers */
+const $ = (id) => document.getElementById(id);
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? (k.startsWith('aria-') ? 'true' : '') : v);
+  }
+  for (const c of kids.flat(Infinity)) { if (c == null || c === false) continue; e.append(c.nodeType ? c : document.createTextNode(String(c))); }
+  return e;
+}
+const ICONS = {  // static, trusted markup (Lucide-style strokes)
+  plus: '<path d="M12 5v14M5 12h14"/>', check: '<path d="M20 6 9 17l-5-5"/>', alert: '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  shield: '<path d="M12 3 4 6v6c0 4.5 3.2 8.3 8 9 4.8-.7 8-4.5 8-9V6l-8-3z"/><path d="m9 12 2 2 4-4"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  refresh: '<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12A9 9 0 0 1 18.5 5.8L21 8"/><path d="M21 3v5h-5"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>', file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', stop: '<rect x="6" y="6" width="12" height="12" rx="1"/>',
+  play: '<path d="m7 4 13 8-13 8z"/>', wave: '<path d="M2 12h4l3-8 4 16 3-8h6"/>', ban: '<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
+};
+function icon(name) { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('class', 'i'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = ICONS[name] || ''; return s; }
+function toast(msg) { const t = el('div', { class: 'toast', role: 'alert', text: msg }); document.body.append(t); setTimeout(() => t.remove(), 6000); }
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const ct = r.headers.get('content-type') || '';
+  const body = ct.includes('json') ? await r.json() : await r.text();
+  if (!r.ok) throw new Error((body && body.error) || ('HTTP ' + r.status));
+  return body;
+}
+const post = (p, b) => api(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+const fmt = (n) => n == null ? '-' : Number(n).toLocaleString();
+const dur = (s) => { s = Math.round(s || 0); return s >= 60 ? Math.floor(s / 60) + 'm ' + (s % 60) + 's' : s + 's'; };
+const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+const short = (v, n = 140) => { const s = typeof v === 'string' ? v : JSON.stringify(v); return s.length > n ? s.slice(0, n) + '...' : s; };
+
+/* =================================================================== state */
+let CFG = null, cur = null, V = null, events = [], allEvents = [], result = null, diffText = null;
+let tab = 'result', timer = null, replayTimer = null, replaying = false, autoTabbed = false;
+let showModel = true, renderedSeq = 0, lastRunsHtml = '';
+
+const EXAMPLES = [
+  { n: 'Find bugs in a codebase', d: 'Reads a small repo and ranks issues, each backed by a quoted line.', folder: 'buggy_repo', goal: 'Review this repo for bugs and security issues. Produce a prioritized list with evidence.' },
+  { n: 'Research a question on the web', d: 'Searches the web, reads pages, and answers with quoted sources.', folder: '', goal: 'Compare SQLite and PostgreSQL for a small web app. Give the main differences with sources.' },
+  { n: 'Look something up, then edit', d: 'Researches first, then makes the change once you approve it.', folder: 'buggy_repo', goal: 'Find the age at which a person is legally an adult in most countries, then make is_adult in utils.py match it.' },
+  { n: 'Review a public GitHub repo', d: 'Downloads the repo into the sandbox first, then reviews it. Slow on free hosted tiers.', folder: '', goal: 'Review the code in https://github.com/karpathy/micrograd for bugs, correctness and design problems. Produce a prioritized list with evidence.' },
+  { n: 'Resist a planted attack', d: 'A file tells the AI to ignore its rules. Watch the harness refuse.', folder: 'injection_repo', goal: 'Review this repo for security issues. Produce a prioritized list with evidence.' },
+  { n: 'Triage support tickets', d: 'Sorts a folder of tickets by urgency and category.', folder: 'notes', goal: 'Triage these support tickets by urgency and category. Produce a structured report with evidence.' },
+  { n: 'Make an edit (needs your OK)', d: 'Changes one line. Nothing is written until you approve the diff.', folder: 'buggy_repo', goal: 'In utils.py, change the function is_adult so it returns age >= 18 instead of age > 18.' },
+  { n: 'Ask for the impossible', d: 'The planner should say no instead of pretending.', folder: '', goal: 'Book me a flight to Paris next Tuesday.' },
+];
+
+/* =================================================================== init + rail */
+async function init() {
+  CFG = await api('/api/config');
+  $('newBtn').addEventListener('click', showComposer);
+  showComposer();
+  await loadRuns();
+  setInterval(loadRuns, 4000);
+}
+
+async function loadRuns() {
+  try {
+    const rows = await api('/api/runs');
+    const sig = JSON.stringify(rows.map(r => [r.id, r.status, r.budget && r.budget.calls])) + cur;
+    if (sig === lastRunsHtml) return; lastRunsHtml = sig;
+    const box = $('runs'); box.replaceChildren();
+    if (!rows.length) box.append(el('div', { class: 'loading', text: 'No runs yet.' }));
+    rows.forEach(r => box.append(el('button', { class: 'run' + (cur === r.id ? ' sel' : ''), onclick: () => openRun(r.id) },
+      el('span', { class: 'g', text: r.goal }),
+      el('span', { class: 'm' }, el('i', { class: 'dot ' + r.status }), el('span', { text: statusWord(r.status) }),
+        r.budget ? el('span', { text: '- ' + dur(r.budget.seconds) }) : null,
+        el('span', { text: '- ' + when(r.updated) })))));
+  } catch (e) { /* best effort */ }
+}
+function when(epoch) {
+  if (!epoch) return '';
+  const d = new Date(epoch * 1000), now = new Date();
+  const hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toDateString() === now.toDateString() ? 'today ' + hm : d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + hm;
+}
+function statusWord(s) { return { running: 'In progress', complete: 'Finished', partial: 'Partly finished', failed: 'Failed', refused: "Can't do this", interrupted: 'Interrupted' }[s] || s; }
+
+/* =================================================================== composer */
+function showComposer() {
+  stopTimers(); cur = null; V = null; lastRunsHtml = ''; loadRuns();
+  const goal = el('textarea', { id: 'goal', placeholder: 'Describe the job in plain English. For example: Review this repo for bugs and list the most important ones with proof.' });
+  const folder = el('select', { id: 'input' }, el('option', { value: '', text: 'No folder (for web research or tasks that need no files)' }),
+    CFG.samples.map(s => el('option', { value: s, text: 'samples/' + s })));
+  const upStatus = el('span', { style: 'font-size:13px;color:var(--muted)' });
+  const pickFiles = (asFolder) => {
+    const inp = el('input', { type: 'file', multiple: true });
+    if (asFolder) inp.setAttribute('webkitdirectory', '');
+    inp.addEventListener('change', () => uploadFiles([...inp.files], folder, upStatus));
+    inp.click();
+  };
+  const uploadBox = el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px' },
+    el('button', { class: 'btn', type: 'button', onclick: () => pickFiles(false) }, 'Upload files or a .zip'),
+    el('button', { class: 'btn', type: 'button', onclick: () => pickFiles(true) }, 'Upload a folder'), upStatus);
+  const ollamaOpt = el('label', { class: 'opt' }, el('input', { type: 'radio', name: 'prov', value: 'ollama' }), el('b', { text: 'Local model (Ollama)' }), el('span', { text: 'Free and private, but a small model: it can miss bugs or wrongly refuse a task.' }));
+  const groqOpt = el('label', { class: 'opt' }, el('input', { type: 'radio', name: 'prov', value: 'groq', disabled: !CFG.groq_ready }), el('b', { text: 'Hosted model (Groq)' }),
+    el('span', { text: CFG.groq_ready ? 'Much stronger and faster. Free tier has rate limits.' : 'Unavailable: no GROQ_API_KEY in the server environment.' }));
+  const pick = CFG.groq_ready ? groqOpt : ollamaOpt;
+  pick.querySelector('input').checked = true;
+  const fb = el('select', { id: 'fallback' }, el('option', { value: '', text: 'None: fail the step instead' }), el('option', { value: 'ollama', text: 'Local model (Ollama), recommended', selected: true }), CFG.groq_ready ? el('option', { value: 'groq', text: 'Hosted model (Groq)' }) : null);
+  const num = (id, label, help, min, max) => el('div', {}, el('label', { for: id, text: label }), el('input', { type: 'number', id, min, max, value: CFG.limits[id] }), el('small', { text: help }));
+  const chaosV = el('b', { id: 'chaosv', text: '0%' });
+  const chaos = el('input', { type: 'range', id: 'chaos', min: 0, max: 0.9, step: 0.1, value: 0, style: 'width:100%', 'aria-label': 'Simulated failure rate', oninput: (e) => chaosV.textContent = Math.round(e.target.value * 100) + '%' });
+  const start = el('button', { class: 'btn primary', id: 'start', onclick: () => startRun(start) }, icon('play'), 'Start the run');
+
+  $('main').replaceChildren(el('div', { class: 'hero' },
+    el('h1', { text: 'Give a team of AI agents a job.' }),
+    el('p', { text: 'A planner splits your goal, workers do the pieces in parallel, a checker verifies every claim against the real files, and everything is recorded. You stay in control: limits are enforced and risky actions wait for your approval.' })),
+    el('div', { class: 'sec card pad', style: 'margin-top:24px' },
+      el('div', { class: 'step' }, el('div', { class: 'n', text: '1' }), el('div', {},
+        el('h3', { text: 'What should the team do?' }), el('p', { class: 'lead', text: 'Write the goal, or start from an example.' }), goal,
+        el('div', { class: 'examples' }, EXAMPLES.map(x => el('button', { class: 'ex', type: 'button', onclick: () => { goal.value = x.goal; folder.value = x.folder; goal.focus(); } }, el('b', { text: x.n }), el('span', { text: x.d })))))),
+      el('div', { class: 'step' }, el('div', { class: 'n', text: '2' }), el('div', {},
+        el('h3', { text: 'What can it look at?' }), el('p', { class: 'lead', text: 'Pick a sample, or upload your own files. The agents work on a private copy; your originals are never changed. For a GitHub repo, just put its link in the goal.' }), folder, uploadBox)),
+      el('div', { class: 'step' }, el('div', { class: 'n', text: '3' }), el('div', {},
+        el('h3', { text: 'Which AI model?' }), el('p', { class: 'lead', text: 'The harness works the same with either.' }), el('div', { class: 'choice' }, ollamaOpt, groqOpt),
+        el('details', { class: 'adv' }, el('summary', { text: 'Safety limits and failure testing' }), el('div', { class: 'body' },
+          el('div', { class: 'grid2' },
+            num('max_llm_calls', 'Max model calls', 'The whole run stops cleanly at this count.', 1, 500),
+            num('max_tokens', 'Max tokens', 'Total text the models may read and write.', 500, 2000000),
+            num('max_seconds', 'Max seconds', 'Time limit for the whole run. The ceiling is 900 s (15 minutes).', 10, 900),
+            num('concurrency', 'Agents at once', 'How many subtasks run in parallel.', 1, 6),
+            el('div', {}, el('label', { for: 'fallback', text: 'If the model keeps failing, switch to' }), fb)),
+          el('div', { style: 'margin-top:16px' }, el('label', { for: 'chaos', style: 'font-size:13px;color:var(--ink-2)' }, 'Simulate outages: ', chaosV, ' of model calls fail on purpose'), chaos,
+            el('small', { style: 'color:var(--muted);font-size:12px', text: 'Use this to watch retries, backoff and the "partly finished" label in action.' })))))),
+      el('div', { style: 'padding-top:18px;border-top:1px solid var(--line)' }, start)));
+}
+
+async function uploadFiles(files, sel, status) {
+  const SKIP_DIR = /(^|\/)(\.git|node_modules|__pycache__|\.venv|venv|dist|build)\//;
+  const SKIP_EXT = /\.(png|jpe?g|gif|ico|pdf|exe|dll|so|bin|woff2?|ttf|mp3|mp4|mov|pyc|class|jar|whl)$/i;
+  const keep = files.filter(f => { const n = f.webkitRelativePath || f.name; return !SKIP_DIR.test(n) && !SKIP_EXT.test(n) && f.size <= 5 * 1024 * 1024; }).slice(0, 2500);
+  if (!keep.length) { status.textContent = 'No readable text files in that selection.'; return; }
+  status.textContent = `Uploading ${keep.length} file(s)...`;
+  const toB64 = (f) => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => { const b = new Uint8Array(r.result); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); res(btoa(s)); };
+    r.onerror = rej; r.readAsArrayBuffer(f);
+  });
+  try {
+    const payload = [];
+    for (const f of keep) payload.push({ name: f.webkitRelativePath || f.name, b64: await toB64(f) });
+    const r = await post('/api/upload', { files: payload });
+    const opt = el('option', { value: 'upload:' + r.upload_id, text: `Uploaded (${r.files} file${r.files === 1 ? '' : 's'})` });
+    sel.append(opt); sel.value = opt.value;
+    status.textContent = `Ready: ${r.files} file(s)` + (r.skipped ? `, ${r.skipped} skipped (binary or too large)` : '') + '.';
+  } catch (e) { status.textContent = ''; toast(e.message); }
+}
+
+async function startRun(btn) {
+  btn.disabled = true;
+  try {
+    const body = { goal: $('goal').value, input: $('input').value, provider: document.querySelector('input[name=prov]:checked').value,
+      fallback: $('fallback').value || null, chaos: +$('chaos').value };
+    for (const k of ['max_llm_calls', 'max_seconds', 'max_tokens', 'concurrency']) body[k] = +$(k).value;
+    const r = await post('/api/runs', body);
+    await openRun(r.run_id);
+  } catch (e) { toast(e.message); btn.disabled = false; }
+}
+
+/* =================================================================== run view */
+function stopTimers() { clearInterval(timer); clearInterval(replayTimer); replaying = false; }
+
+async function openRun(id, replay = false) {
+  stopTimers(); cur = id; events = []; result = null; diffText = null; autoTabbed = false; renderedSeq = 0; lastRunsHtml = '';
+  const v = await api('/api/runs/' + id + '?after=0');
+  V = v; allEvents = v.events;
+  const live = v.active || v.status === 'running';
+  tab = (live || replay) ? 'activity' : 'result';
+  if (replay) { replaying = true; events = []; let i = 0; replayTimer = setInterval(() => { if (i >= allEvents.length) { stopTimers(); render(); return; } events.push(allEvents[i++]); render(); }, 130); }
+  else events = v.events;
+  buildShell(); render(); loadRuns();
+  if (!replay && live) timer = setInterval(poll, 1000);
+  $('main').focus({ preventScroll: true });
+}
+
+async function poll() {
+  try {
+    const last = events.length ? events[events.length - 1].seq : 0;
+    const v = await api('/api/runs/' + cur + '?after=' + last);
+    events = events.concat(v.events); V = v;
+    if (!v.active && v.status !== 'running') {
+      clearInterval(timer); result = null; diffText = null;
+      if (!autoTabbed) { autoTabbed = true; tab = 'result'; renderedSeq = 0; }
+      loadRuns();
+    }
+    render();
+  } catch (e) { clearInterval(timer); toast('Lost connection to the server.'); }
+}
+
+function buildShell() {
+  $('main').replaceChildren(el('div', { id: 'head' }), el('div', { id: 'attn' }),
+    el('section', { class: 'sec', id: 'team' }), el('section', { class: 'sec', id: 'limits' }), el('section', { class: 'sec', id: 'detail' }));
+}
+const liveStatus = () => replaying ? 'running' : V.status;
+function render() { if (!V) return; renderHead(); renderAttention(); renderTeam(); renderLimits(); renderDetail(); }
+
+function secHead(title, hint) { return el('div', { class: 'sec-h' }, el('h2', { text: title }), el('div', { class: 'rule' }), hint ? el('span', { class: 'hint', text: hint }) : null); }
+
+/* ---- header + verdict */
+function subCounts() {
+  const subs = replaying ? deriveLanes() : (V.state.subtasks || {});
+  const vals = Object.values(subs), n = vals.length, ok = vals.filter(s => s.status === 'accepted').length;
+  return { n, ok, vals };
+}
+function modelNote() {
+  const st = events.find(e => e.kind === 'run_start'); const call = events.find(e => e.kind === 'llm_call');
+  if (!st) return '';
+  return '  -  model: ' + (call ? call.model : st.provider) + (st.provider === 'ollama' ? ' (small local model)' : '');
+}
+function renderHead() {
+  const s = V.state, st = liveStatus(), { n, ok } = subCounts();
+  const b = replaying ? replayBudget() : (V.budget || s.budget || {});
+  const nFind = result ? (result.findings || []).length : Object.values(s.subtasks || {}).reduce((a, t) => a + ((t.findings || []).length), 0);
+  const V_ = {
+    running: ['play', 'The team is working', n ? `${ok} of ${n} subtasks verified so far.` : 'The planner is breaking the goal into subtasks.'],
+    complete: ['check', 'Finished: every subtask passed the checker', `${ok} subtasks verified${nFind ? ', ' + nFind + ' findings' : ''}, in ${dur(b.seconds)}.`],
+    partial: ['alert', 'Partly finished', `${ok} of ${n} subtasks passed the checker. The rest are flagged below; do not treat this result as complete.`],
+    refused: ['ban', "The team can't do this", 'The planner decided the goal needs abilities the harness does not give agents.'],
+    failed: ['x', 'The run failed', 'Nothing usable was produced. See the Safety log for what went wrong.'],
+    interrupted: ['alert', 'The run was interrupted', 'The server stopped before it finished. The trace so far is kept.'],
+  }[st] || ['alert', st, ''];
+  let vcls = st, vv = V_;
+  if (st === 'complete' && !replaying && nFind === 0) {
+    vcls = 'partial';
+    vv = ['alert', 'Finished, but nothing was found', 'No subtask produced a finding. A small model may simply have missed things, so treat this as unconfirmed and try a stronger model.'];
+  }
+  const reasons = [];
+  if (!replaying && ['partial', 'failed', 'refused'].includes(st)) {
+    for (const [sid, t] of Object.entries(s.subtasks || {})) if (t.status !== 'accepted') reasons.push(`${sid} "${t.title || ''}" ended as ${t.status}${t.reason ? ': ' + short(t.reason, 200) : ''}`);
+    if (st === 'refused') { const e = events.find(x => x.kind === 'refused'); if (e) reasons.push(e.reason); }
+  }
+  if (!replaying) (s.warnings || []).forEach(w => reasons.push(w));
+  $('head').replaceChildren(
+    el('div', { class: 'rh' },
+      el('div', {}, el('h1', { text: s.goal }), el('div', { class: 'meta', text: V.run_id + modelNote() })),
+      el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
+        (V.active && !replaying) ? el('button', { class: 'btn', onclick: () => post('/api/runs/' + cur + '/cancel', {}).catch(e => toast(e.message)) }, icon('stop'), 'Stop run') : null,
+        (!V.active) ? el('button', { class: 'btn', onclick: () => openRun(cur, true) }, icon('refresh'), replaying ? 'Restart replay' : 'Replay this run') : null)),
+    el('div', { class: 'verdict ' + vcls }, el('div', { class: 'ic' }, icon(vv[0])), el('div', {}, el('b', { text: vv[1] }), el('span', { text: vv[2] }),
+      reasons.length ? el('ul', { class: 'reasons' }, reasons.map(r => el('li', { text: r }))) : null)));
+}
+
+/* ---- human approval */
+function renderAttention() {
+  const a = $('attn'); a.replaceChildren();
+  if (replaying) return;
+  (V.pending || []).forEach(p => a.append(el('div', { class: 'attn', role: 'alert' },
+    el('h3', {}, icon('user'), 'Your approval is needed'),
+    el('p', { text: `${actor(p.requested_by).label} wants to use "${p.tool}". Nothing is changed until you decide, and the edit only touches this run's private copy.` }),
+    el('pre', { text: p.preview }),
+    el('div', { class: 'btns' },
+      el('button', { class: 'btn ok', onclick: () => post('/api/runs/' + cur + '/approve', { id: p.id, approved: true }).then(poll).catch(e => toast(e.message)) }, icon('check'), 'Approve this change'),
+      el('button', { class: 'btn danger', onclick: () => post('/api/runs/' + cur + '/approve', { id: p.id, approved: false }).then(poll).catch(e => toast(e.message)) }, icon('x'), 'Reject')))));
+}
+
+/* ---- the team */
+function roleCounts(role) {
+  let s = 0, e = 0;
+  events.forEach(ev => { const r = (ev.agent || '').split('-')[0]; if (r === role) { if (ev.kind === 'agent_start') s++; if (ev.kind === 'agent_end') e++; } });
+  return { s, e };
+}
+function deriveLanes() {
+  const lanes = {};
+  events.forEach(e => {
+    if (e.kind === 'plan') e.subtasks.forEach(s => lanes[s.id] = { title: s.title, status: 'queued', kind: s.kind, attempts: 0, findings: [] });
+    const m = /^(?:worker|researcher|checker|editor)-(s\d+)/.exec(e.agent || ''); const L = m && lanes[m[1]]; if (!L) return;
+    if (e.kind === 'agent_start' && !e.agent.startsWith('checker')) { L.status = 'working'; L.attempts++; }
+    if (e.kind === 'verdict') L.status = e.verdict === 'accept' ? 'accepted' : 'working';
+    if (e.kind === 'loop_limit') L.status = 'unverified';
+    if (e.kind === 'subtask_failed' || e.kind === 'subtask_crashed') L.status = 'failed';
+    if (e.kind === 'budget_exceeded') L.status = 'skipped';
+  });
+  return lanes;
+}
+function renderTeam() {
+  const st = liveStatus(), finished = !V.active && !replaying && st !== 'running';
+  const P = roleCounts('planner'), C = roleCounts('checker'), A = roleCounts('assembler');
+  const W0 = roleCounts('worker'), R0 = roleCounts('researcher'), E = roleCounts('editor');
+  const W = { s: W0.s + R0.s, e: W0.e + R0.e };   // workers and researchers share one card
+  const state = (c) => c.s === 0 ? (finished ? 'skipped' : 'waiting') : (c.s > c.e && !finished ? 'working' : 'done');
+  const verdicts = events.filter(e => e.kind === 'verdict');
+  const sub = subCounts();
+  const wTotal = W.s + E.s, wOpen = (W.s - W.e) + (E.s - E.e);
+  const nodes = [
+    { n: 'Planner', d: 'Splits the goal into a few independent subtasks. Can only list files.', s: state(P), c: P.s ? 'Plan ready' : '' },
+    { n: 'Workers', d: 'Analysts read files; researchers search the web; editors change files. All report findings with quoted proof.', s: (wOpen && !finished) ? 'working' : (wTotal ? 'done' : (finished ? 'skipped' : 'waiting')), c: wTotal ? ((wOpen && !finished) ? `${wOpen} working now (${wTotal} started)` : `${wTotal} run${wTotal === 1 ? '' : 's'} finished`) : '' },
+    { n: 'Checker', d: 'Code verifies every quote exists in the file; a model judges the rest. Can send work back.', s: state(C), c: verdicts.length ? `${verdicts.filter(v => v.verdict === 'accept').length} approved, ${verdicts.filter(v => v.verdict !== 'accept').length} sent back` : '' },
+    { n: 'Assembler', d: 'Ranks the verified findings and writes the summary. Has no tools at all.', s: state(A), c: '' },
+  ];
+  const lanes = replaying ? deriveLanes() : (V.state.subtasks || {});
+  const act = {};
+  events.forEach(e => {
+    const m = /-(s\d+)/.exec(e.agent || ''); if (!m) return; const r = (e.agent || '').split('-')[0];
+    if (e.kind === 'tool_call') act[m[1]] = `${cap(r)}: ${toolSentence(e)}`;
+    else if (e.kind === 'llm_call') act[m[1]] = `${cap(r)} is thinking`;
+    else if (e.kind === 'verdict') act[m[1]] = `Checker ${e.verdict === 'accept' ? 'approved' : 'sent it back'}`;
+    else if (e.kind === 'retry_wait') act[m[1]] = `Waiting ${e.seconds}s, then retrying`;
+    else if (e.kind === 'throttle') act[m[1]] = `Pausing to respect the rate limit`;
+  });
+  const box = $('team'); box.replaceChildren(secHead('The team', 'Each role has its own instructions and its own tools'));
+  box.append(el('div', { class: 'team' }, nodes.map(x => el('div', { class: 'node ' + x.s },
+    el('div', { class: 'st' }, x.s === 'working' ? el('i', { class: 'dot running' }) : x.s === 'done' ? icon('check') : null, x.s === 'skipped' ? 'not run' : x.s),
+    el('h3', { text: x.n }), el('p', { text: x.d }), x.c ? el('div', { class: 'cnt', text: x.c }) : null))));
+  const ids = Object.keys(lanes);
+  if (ids.length) box.append(el('div', { class: 'subs' }, ids.map(id => {
+    const L = lanes[id], busy = ['working', 'running'].includes(L.status) && (V.active || replaying);
+    const nf = Array.isArray(L.findings) ? L.findings.length : 0;
+    return el('div', { class: 'sub ' + L.status },
+      el('div', { class: 'h' }, el('span', { text: id + ' - ' + (L.kind || 'analyze') + (L.after && L.after.length ? ' (after ' + L.after.join(', ') + ')' : '') }), el('span', { class: 'tag ' + L.status, text: L.status })),
+      el('div', { class: 't', text: L.title || '' }),
+      el('div', { class: 'a', text: busy ? (act[id] || 'Starting') : (L.reason ? short(L.reason, 120) : (L.kind === 'edit' ? `${(L.edits || []).length} edit applied after your approval` : `${nf} verified finding${nf === 1 ? '' : 's'}, ${L.attempts || 0} attempt${L.attempts === 1 ? '' : 's'}`)) }));
+  })));
+  else if (V.status === 'refused') box.append(el('div', { class: 'hint', style: 'margin-top:10px;color:var(--muted)', text: 'No subtasks were created.' }));
+}
+
+/* ---- limits */
+function replayBudget() { let calls = 0, tokens = 0; events.forEach(e => { if (e.kind === 'llm_call') { calls++; tokens += (e.input_tokens || 0) + (e.output_tokens || 0); } }); return { calls, tokens, seconds: events.length ? events[events.length - 1].t : 0 }; }
+function statsFromEvents() { const c = { retries: 0, llm_errors: 0, injections_flagged: 0, tool_denied: 0 }; events.forEach(e => { if (e.kind === 'retry_wait') c.retries++; if (e.kind === 'llm_error') c.llm_errors++; if (e.kind === 'injection_flagged') c.injections_flagged++; if (e.kind === 'tool_denied') c.tool_denied++; }); return c; }
+function renderLimits() {
+  const lim = V.limits || {}, sb = V.state.budget || {}, vb = V.budget || {};
+  const mx = { calls: vb.max_calls || sb.max_calls || lim.max_llm_calls, tokens: vb.max_tokens || sb.max_tokens || lim.max_tokens, seconds: vb.max_seconds || sb.max_seconds || lim.max_seconds };
+  const b = replaying ? replayBudget() : (V.budget || {});
+  const card = (label, used, max, unit, fmtv) => { const pct = max ? Math.min(100, used / max * 100) : 0;
+    return el('div', { class: 'card lim' }, el('div', { class: 'top' }, el('span', { text: label }), el('b', {}, fmtv(used), el('small', { text: ' of ' + fmtv(max) }))),
+      el('div', { class: 'bar', role: 'progressbar', 'aria-valuenow': Math.round(pct), 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-label': label }, el('i', { class: pct >= 90 ? 'hot' : '', style: 'width:' + pct + '%' }))); };
+  const st = replaying ? statsFromEvents() : (V.stats || V.state.stats || {});
+  const ct = (label, v, alert) => el('span', { class: alert && v ? 'alert' : '' }, label + ' ', el('b', { text: v || 0 }));
+  const box = $('limits'); box.replaceChildren(secHead('Limits', 'The run stops cleanly if any of these runs out'),
+    el('div', { class: 'limits' }, card('Model calls', b.calls || 0, mx.calls, '', fmt), card('Tokens used', b.tokens || 0, mx.tokens, '', fmt), card('Time', b.seconds || 0, mx.seconds, 's', dur)),
+    el('div', { class: 'counters' }, ct('Retries after errors:', st.retries, 1), ct('Model errors:', st.llm_errors, 1), ct('Attacks spotted in files:', st.injections_flagged, 1), ct('Actions blocked:', st.tool_denied, 1)));
+}
+
+/* =================================================================== tabs */
+const SAFETY_KINDS = new Set(['tool_denied', 'injection_flagged', 'llm_error', 'retry_wait', 'throttle', 'invalid_output', 'grounding_required', 'budget_exceeded', 'approval_requested', 'approval_result', 'loop_limit', 'fallback', 'provider_down', 'fallback_plan', 'plan_adjusted', 'subtask_skipped', 'refused', 'refusal_challenged', 'refusal_overturned', 'subtask_failed', 'subtask_crashed', 'checker_failed', 'assembler_failed']);
+function safetyEvents() { return events.filter(e => SAFETY_KINDS.has(e.kind) || (e.kind === 'evidence_check' && e.unsupported.length) || (e.kind === 'verdict' && e.verdict !== 'accept')); }
+function renderDetail() {
+  const box = $('detail'); const hadLog = box.querySelector('.log');
+  const sc = safetyEvents().length;
+  const tabs = [['result', 'Result'], ['activity', 'Activity', events.length], ['safety', 'Safety log', sc], ['changes', 'File changes']];
+  const bar = el('div', { class: 'tabs', role: 'tablist' }, tabs.map(([k, n, c]) => el('button', { class: 'tab', role: 'tab', 'aria-selected': tab === k, onclick: () => { tab = k; renderedSeq = 0; box.dataset.tab = ''; renderDetail(); } }, n, c != null ? el('span', { class: 'c' + (k === 'safety' && safetyEvents().some(e => sev(e) === 'bad' || sev(e) === 'warn' && e.kind !== 'throttle') ? ' hot' : ''), text: c }) : null)));
+  if (tab === 'activity' && hadLog && box.dataset.tab === 'activity') { box.firstChild.replaceWith(bar); appendActivity(hadLog); return; }  // incremental: keep expanded rows
+  box.dataset.tab = tab; box.replaceChildren(bar);
+  const body = el('div', { id: 'tabbody' }); box.append(body);
+  if (tab === 'result') renderResult(body); else if (tab === 'activity') renderActivity(body); else if (tab === 'safety') renderSafety(body); else renderChanges(body);
+}
+
+/* ---- result */
+async function renderResult(body) {
+  if (replaying || V.active || V.status === 'running') { body.append(el('div', { class: 'card empty' }, 'The result appears here when the run finishes. Watch progress under Activity.')); return; }
+  if (result == null) { try { result = JSON.parse(await api(`/api/runs/${cur}/result`) || '{}'); } catch (e) { result = {}; } if (!result.findings) { result = fallbackResult(); } }
+  if (tab !== 'result') return;
+  body.replaceChildren();
+  if (result.summary) body.append(el('div', { class: 'card summary' }, el('h4', { text: 'Summary' }), result.summary));
+  body.append(el('div', { class: 'sec', style: 'margin-top:20px' }, secHead('Findings', 'Most important first. Every quote was checked against the file by code.')));
+  const f = result.findings || [];
+  if (!f.length) body.append(el('div', { class: 'card empty', text: V.status === 'refused' ? 'No findings: the goal was refused.' : 'No findings were produced. If you expected some, treat this run with suspicion and check the Safety log.' }));
+  f.forEach((x, i) => body.append(el('article', { class: 'finding' },
+    el('div', { class: 'rk' }, el('b', { text: '#' + (i + 1) }), el('span', { class: 'sev ' + String(x.severity || 'info').toLowerCase(), text: x.severity || 'info' })),
+    el('div', { class: 'bd' }, el('h3', { text: x.title }),
+      (x.category || (x.seen_by || 1) > 1) ? el('div', { class: 'chips' }, x.category ? el('span', { class: 'chip', text: x.category }) : null,
+        (x.seen_by || 1) > 1 ? el('span', { class: 'chip good', text: 'found independently ' + x.seen_by + 'x' }) : null) : null,
+      el('p', { text: x.detail || '' }),
+      (x.evidence || []).map(e => el('div', { class: 'ev' }, el('div', { class: 'evh' }, el('span', { text: e.file + (e.line ? ':' + e.line : '') }),
+        el('span', { class: 'v' + (e.verified ? '' : ' no') }, icon(e.verified ? 'check' : 'x'), e.verified ? ((e.url ? 'quote found on the page' : 'quote found in file') + (e.support === 'weak' ? ' - but weak match to the claim' : '')) : 'NOT found in source')),
+        e.url ? el('div', { class: 'evsrc' }, el('a', { href: e.url, target: '_blank', rel: 'noopener noreferrer', text: e.url })) : null,
+        el('code', { text: String(e.quote).replace(/^\s+/, '') }))),
+      x.checked === false ? el('div', { class: 'notice' }, icon('alert'), 'The checker did not approve this finding. The quotes are real, but treat the claim as unconfirmed.') : null))));
+  body.append(el('div', { class: 'sec', style: 'margin-top:28px' }, secHead('Subtasks', 'Who did what')));
+  const subs = Object.entries(V.state.subtasks || {});
+  body.append(el('div', { class: 'card', style: 'overflow:auto' }, el('table', { class: 't' }, el('thead', {}, el('tr', {}, ['Subtask', 'Status', 'Attempts', 'Outcome'].map(h => el('th', { text: h })))),
+    el('tbody', {}, subs.map(([id, t]) => el('tr', {}, el('td', {}, el('b', { text: id }), ' ' + (t.title || '')), el('td', {}, el('span', { class: 'tag ' + t.status, text: t.status })), el('td', { text: t.attempts ?? '' }), el('td', { text: short(t.reason || t.summary || '', 170) })))))));
+  body.append(el('p', { style: 'margin-top:14px' }, el('a', { href: `/api/runs/${cur}/report`, target: '_blank', rel: 'noopener', style: 'color:var(--accent)', text: 'Open the raw Markdown report' })));
+}
+function fallbackResult() {  // runs saved before result.json existed
+  const f = []; for (const [sid, t] of Object.entries(V.state.subtasks || {})) (t.findings || []).forEach(x => f.push({ ...x, checked: t.status === 'accepted' }));
+  return { findings: f, summary: '' };
+}
+
+/* ---- activity */
+const VERB = { github_fetch: 'Downloaded GitHub repo', read_file: 'Read', read_files: 'Read files', list_dir: 'Listed files in', search_text: 'Searched files for', static_scan: 'Ran the rule scan on', web_search: 'Searched the web for', fetch_url: 'Fetched', calculate: 'Calculated', now: 'Checked the date', edit_file: 'Edited' };
+function toolSentence(e) {
+  const a = e.args || {};
+  const t = a.repo ? `${a.owner}/${a.repo}` : (a.paths ? (a.paths || []).join(', ') : (a.path || a.url || a.query || a.expression || a.pattern || (e.tool === 'now' ? '' : '.')));
+  return `${VERB[e.tool] || e.tool} ${t}${e.ok ? '' : ' (failed)'}`.trim();
+}
+function actor(id) {
+  const m = /^(planner|assembler|orchestrator|worker|researcher|checker|editor|ingest)(?:-(s\d+))?(?:-a(\d+))?$/.exec(id || '');
+  if (!m) return { role: 'orchestrator', label: id };
+  const [, r, s, a] = m, name = r === 'orchestrator' ? 'System' : r === 'ingest' ? 'Fetcher' : cap(r);
+  return { role: r, label: name + (s ? ' ' + s : '') + (a && +a > 1 ? ` (try ${a})` : '') };
+}
+function sev(e) {
+  if (['llm_error', 'tool_denied', 'budget_exceeded', 'subtask_failed', 'subtask_crashed', 'run_crashed', 'loop_limit', 'refused', 'checker_failed', 'assembler_failed'].includes(e.kind)) return 'bad';
+  if (['injection_flagged', 'retry_wait', 'invalid_output', 'grounding_required', 'fallback', 'throttle', 'provider_down', 'weak_evidence', 'fallback_plan', 'plan_adjusted', 'subtask_skipped'].includes(e.kind) || (e.kind === 'verdict' && e.verdict !== 'accept') || (e.kind === 'evidence_check' && e.unsupported.length)) return 'warn';
+  if ((e.kind === 'verdict' && e.verdict === 'accept') || (e.kind === 'approval_result' && e.approved)) return 'good';
+  return '';
+}
+function sentence(e) {
+  switch (e.kind) {
+    case 'run_start': return `Run started on ${e.provider}${e.fallback ? ' (fallback: ' + e.fallback + ')' : ''}.`;
+    case 'plan': return `Planned ${e.subtasks.length} subtask${e.subtasks.length === 1 ? '' : 's'}: ${e.subtasks.map(s => s.title).join('; ')}.`;
+    case 'agent_start': return `${cap(e.role)} started. Allowed tools: ${(e.tools || []).join(', ') || 'none'}.`;
+    case 'llm_call': return `Asked the model (${e.model}). ${fmt(e.input_tokens)} tokens in, ${fmt(e.output_tokens)} out, ${e.seconds}s.` + (e.attempt > 1 ? ` Attempt ${e.attempt}.` : '');
+    case 'tool_call': return `${toolSentence(e)}. ${e.ok ? '' : short(e.result, 120)}`;
+    case 'evidence_check': return e.unsupported.length ? `Evidence check FAILED for: ${e.unsupported.join('; ')}.` : `Evidence check passed for ${e.findings} finding${e.findings === 1 ? '' : 's'}.`;
+    case 'verdict': return e.verdict === 'accept' ? `Checker approved. ${short(e.feedback, 150)}` : `Checker sent the work back. ${short(e.feedback, 180)}`;
+    case 'throttle': return `Waited ${e.seconds}s to stay under the model provider's rate limit.`;
+    case 'retry_wait': return `Backing off for ${e.seconds}s before trying again.`;
+    case 'llm_error': return `Model call failed${e.retryable ? ' (will retry)' : ''}: ${short(e.error, 170)}`;
+    case 'tool_denied': return `Blocked ${e.tool}: ${e.reason}.`;
+    case 'injection_flagged': return `A file contained text trying to give the AI orders. It was treated as data, not obeyed.`;
+    case 'invalid_output': return `The model's reply was not valid. Asked it to correct itself.`;
+    case 'grounding_required': return `A worker tried to answer without reading anything. Sent back to read first.`;
+    case 'loop_limit': return `The checker kept rejecting after ${e.attempts} attempts. Gave up and marked it unverified.`;
+    case 'budget_exceeded': return `Stopped at the ${e.scope} limit (${e.reason}) while on ${e.subtask}.`;
+    case 'subtask_failed': return `Subtask failed: ${short(e.reason, 180)}`;
+    case 'approval_requested': return `Waiting for a human to approve ${e.tool}.`;
+    case 'approval_result': return `A human ${e.approved ? 'approved' : 'rejected'} ${e.tool}.`;
+    case 'refused': return `The planner declined the goal: ${e.reason}`;
+    case 'weak_evidence': return `The quotes for ${(e.findings || []).map(t => '"' + short(t, 50) + '"').join(', ')} share little wording with the claims; the checker was told to scrutinise them.`;
+    case 'provider_down': return `Not using ${e.provider} for ${Math.round(e.seconds / 60)} minutes (${e.reason}).`;
+    case 'fallback_plan': return `The planner failed, so the goal runs as one subtask (${e.subtask_kind}).`;
+    case 'plan_adjusted': return `The plan was corrected: ${(e.notes || []).join('; ')}.`;
+    case 'subtask_skipped': return `Skipped ${e.subtask}: ${e.reason}.`;
+    case 'findings_merged': return `Merged duplicate findings: ${e.before} reported, ${e.after} distinct.`;
+    case 'refusal_challenged': return `The planner refused, but files are present, so it was asked to reconsider: ${short(e.reason, 120)}`;
+    case 'refusal_overturned': return 'On a second look the planner agreed the task is doable.';
+    case 'fallback': return `Switching from ${e.from_provider} to ${e.to_provider || 'the fallback'}${e.quota ? ' (daily quota used up)' : ''}.`;
+    case 'run_end': return `Run ended: ${e.status}.`;
+    default: return e.kind.replace(/_/g, ' ');
+  }
+}
+function hidden(e) { return e.kind === 'agent_end' || (!showModel && e.kind === 'llm_call'); }
+function renderActivity(body) {
+  body.append(el('div', { class: 'tools' }, el('label', {}, el('input', { type: 'checkbox', checked: showModel, onchange: (e) => { showModel = e.target.checked; renderedSeq = 0; $('detail').dataset.tab = ''; renderDetail(); } }), 'Show model calls'),
+    el('span', { text: 'Click "details" on a model call to see the exact prompt and reply.' })));
+  const log = el('div', { class: 'log', role: 'log' }); body.append(log); renderedSeq = 0; appendActivity(log);
+}
+function appendActivity(log) {
+  const near = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+  events.filter(e => e.seq > renderedSeq && !hidden(e)).forEach(e => log.append(activityRow(e)));
+  if (events.length) renderedSeq = events[events.length - 1].seq;
+  if (!log.children.length) log.append(el('div', { class: 'empty', text: 'No activity yet.' }));
+  else if (log.firstChild.classList && log.firstChild.classList.contains('empty')) log.firstChild.remove();
+  if (near || replaying) log.scrollTop = log.scrollHeight;
+}
+function activityRow(e) {
+  const a = actor(e.agent), tx = el('div', { class: 'tx' }, sentence(e));
+  const row = el('div', { class: 'row ' + sev(e) }, el('div', { class: 'tm', text: e.t.toFixed(1) + 's' }), el('div', { class: 'who r-' + a.role, title: e.agent }, el('i'), a.label), tx);
+  if (['llm_call', 'tool_call', 'plan', 'verdict', 'evidence_check', 'injection_flagged'].includes(e.kind)) {
+    let open = null; const more = el('button', { class: 'more', text: 'details' });
+    more.addEventListener('click', async () => {
+      if (open) { open.remove(); open = null; more.textContent = 'details'; return; }
+      let full = e; if (e.kind === 'llm_call') { try { full = await api(`/api/runs/${cur}/event/${e.seq}`); } catch (x) { /* slim fallback */ } }
+      const txt = full.messages ? full.messages.map(m => `[${m.role}]\n${m.content}`).join('\n\n--------\n\n') + '\n\n======== MODEL REPLY ========\n' + full.output : JSON.stringify(full, null, 2);
+      open = el('pre', { text: txt }); tx.append(open); more.textContent = 'hide';
+    });
+    tx.append(more);
+  }
+  return row;
+}
+
+/* ---- safety log */
+function safetyCard(e) {
+  const a = actor(e.agent), s = sev(e);
+  const map = {
+    injection_flagged: () => ['shield', 'A file tried to give the AI orders', `Found instruction-like text (${short(e.matches, 90)}) inside what a tool returned. It was fenced off as untrusted data and flagged. The agent has no way to obey it, because tool permissions are enforced outside the model.`],
+    tool_denied: () => ['lock', 'An action was blocked', `${cap(String(e.tool))} was refused: ${e.reason}.`],
+    llm_error: () => /DAILY QUOTA|per day \(TPD\)/.test(e.error) ? ['ban', 'The hosted model’s DAILY quota is used up', 'Retrying would not help for a long while (it resets in minutes to hours), so the harness did not retry. ' + (/try again in ([\w.]+)/.exec(e.error) ? 'Groq says to try again in ' + /try again in ([\w.]+)/.exec(e.error)[1] + '. ' : '') + 'It switches to the fallback model if one is set.'] : ['wave', 'The model call failed', short(e.error, 220)],
+    retry_wait: () => ['refresh', 'Retrying after a short wait', `Backing off ${e.seconds}s so repeated failures do not hammer the provider.`],
+    throttle: () => ['clock', 'Paused to respect the rate limit', `Waited ${e.seconds}s so the next call would not exceed the provider's tokens-per-minute cap.`],
+    invalid_output: () => ['alert', 'The model replied with something unusable', `${e.error}. It was asked to correct itself.`],
+    grounding_required: () => ['eye', 'A worker tried to answer without reading anything', 'Sent back: workers must read a real file or page before they may report findings.'],
+    evidence_check: () => ['x', 'Evidence check failed', `These claims quoted text that is not in the files: ${e.unsupported.join('; ')}. They were rejected rather than trusted.`],
+    verdict: () => ['alert', 'The checker sent work back', short(e.feedback, 260)],
+    loop_limit: () => ['stop', 'Gave up after repeated rejections', `The checker rejected ${e.attempts} times, so the harness stopped looping and labelled the result unverified.`],
+    budget_exceeded: () => ['stop', 'A limit was reached', `${cap(e.scope)}: ${e.reason}. The run stopped cleanly and kept everything done so far.`],
+    approval_requested: () => ['user', 'Waiting for a human', `${cap(e.tool)} needs approval before anything is written.`],
+    approval_result: () => ['user', e.approved ? 'A human approved an action' : 'A human rejected an action', `${cap(e.tool)} was ${e.approved ? 'allowed to run' : 'not run'}.`],
+    fallback: () => ['refresh', 'Switched to the backup model', (e.quota ? 'The hosted model’s daily quota is used up. ' : '') + `Now using ${e.to_provider || 'the fallback'} for this step. Results are still evidence-checked, but a small model may miss things.`],
+    provider_down: () => ['ban', 'A model provider was switched off for a while', `${cap(e.provider)} is ${e.reason}, so the harness stopped trying it for about ${Math.round(e.seconds / 60)} minutes and used the fallback.`],
+    fallback_plan: () => ['alert', 'The planner failed, so a simple plan was used', `The goal ran as a single ${e.subtask_kind} subtask instead of failing. Reason: ${short(e.reason, 160)}`],
+    plan_adjusted: () => ['shield', 'The harness corrected the plan', (e.notes || []).join('. ')],
+    subtask_skipped: () => ['lock', 'A subtask was not run', `${e.subtask}: ${e.reason}. An edit never runs on top of work that did not complete.`],
+    refusal_challenged: () => ['eye', 'The planner refused, so it was challenged', `Files were present, so the harness asked once more instead of trusting the refusal: ${short(e.reason, 160)}`],
+    refusal_overturned: () => ['check', 'The refusal was overturned', 'On the second look the planner agreed the task is doable and produced a plan.'],
+    refused: () => ['ban', 'The goal was declined', e.reason], subtask_failed: () => ['x', 'A subtask failed', short(e.reason, 220)],
+    subtask_crashed: () => ['x', 'A subtask crashed', e.error], checker_failed: () => ['x', 'The checker could not finish', short(e.reason, 200)], assembler_failed: () => ['alert', 'The assembler could not finish', short(e.reason, 200)],
+  };
+  const [ic, title, text] = map[e.kind] ? map[e.kind]() : ['alert', e.kind, ''];
+  return el('div', { class: 'sf ' + s }, el('div', { class: 'ic' }, icon(ic)), el('div', {}, el('b', { text: title }), el('p', { text }), el('div', { class: 'by', text: `${a.label} - ${e.t.toFixed(1)}s` })));
+}
+function renderSafety(body) {
+  const list = safetyEvents();
+  body.append(el('p', { style: 'margin:0 0 14px;color:var(--ink-2);max-width:70ch', text: 'Everything the harness did to stay safe and reliable during this run: blocked actions, spotted attacks, failures it recovered from, and checks that sent work back.' }));
+  if (!list.length) { body.append(el('div', { class: 'card empty', text: 'Nothing went wrong and nothing needed blocking in this run.' })); return; }
+  body.append(el('div', { class: 'sg' }, list.map(safetyCard)));
+}
+
+/* ---- file changes */
+async function renderChanges(body) {
+  if (replaying || V.active) { body.append(el('div', { class: 'card empty', text: 'Shown when the run finishes.' })); return; }
+  if (diffText == null) { try { diffText = await api(`/api/runs/${cur}/diff`); } catch (e) { diffText = ''; } }
+  if (tab !== 'changes') return;
+  if (!diffText) { body.append(el('div', { class: 'card empty' }, 'No files were changed. Agents only ever edit a private copy, and only after you approve, so your original folder is never touched.')); return; }
+  body.append(el('p', { style: 'margin:0 0 12px;color:var(--ink-2)', text: 'These are the approved changes, applied to the run\'s private copy. Your original files are untouched.' }));
+  const d = el('div', { class: 'diff' }); diffText.split('\n').forEach(l => d.append(el('div', { class: l.startsWith('+++') || l.startsWith('---') || l.startsWith('@@') ? 'hd' : l[0] === '+' ? 'add' : l[0] === '-' ? 'del' : '', text: l || ' ' }))); body.append(d);
+}
+
+init().catch(e => toast('Cannot reach the server: ' + e.message));
+</script>
+</body>
+</html>

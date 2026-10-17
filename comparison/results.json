@@ -1,0 +1,223 @@
+{
+  "code/multi": {
+    "task": "code",
+    "version": "multi",
+    "run_id": "cmp_code_multi_202559",
+    "status": "complete",
+    "seconds": 122.0,
+    "llm_calls": 12,
+    "tokens": 13370,
+    "retries": 0,
+    "llm_errors": 0,
+    "fallbacks": 0,
+    "reasons": [],
+    "score": {
+      "recall": 0.8333333333333334,
+      "grounded": 1.0,
+      "distinct": 1.0,
+      "points": {
+        "recall": 4.2,
+        "grounded": 5.0,
+        "distinct": 5.0
+      },
+      "total": 14.2,
+      "n_findings": 5,
+      "detail": {
+        "found": [
+          "SQL injection",
+          "Hardcoded API key",
+          "Division by zero on empty list",
+          "Bare except",
+          "Unclosed file handle"
+        ],
+        "missed": [
+          "is_adult boundary (> 18)"
+        ]
+      }
+    },
+    "quota_down": false
+  },
+  "code/solo": {
+    "task": "code",
+    "version": "solo",
+    "run_id": "cmp_code_solo_202801",
+    "status": "complete",
+    "seconds": 1.3,
+    "llm_calls": 2,
+    "tokens": 2145,
+    "retries": 0,
+    "llm_errors": 0,
+    "fallbacks": 0,
+    "reasons": [],
+    "score": {
+      "recall": 0.8333333333333334,
+      "grounded": 1.0,
+      "distinct": 1.0,
+      "points": {
+        "recall": 4.2,
+        "grounded": 5.0,
+        "distinct": 5.0
+      },
+      "total": 14.2,
+      "n_findings": 5,
+      "detail": {
+        "found": [
+          "SQL injection",
+          "Hardcoded API key",
+          "Division by zero on empty list",
+          "Bare except",
+          "Unclosed file handle"
+        ],
+        "missed": [
+          "is_adult boundary (> 18)"
+        ]
+      }
+    },
+    "quota_down": false
+  },
+  "triage/multi": {
+    "task": "triage",
+    "version": "multi",
+    "run_id": "cmp_triage_multi_202803",
+    "status": "complete",
+    "seconds": 121.8,
+    "llm_calls": 12,
+    "tokens": 11015,
+    "retries": 1,
+    "llm_errors": 1,
+    "fallbacks": 0,
+    "reasons": [],
+    "score": {
+      "recall": 1.0,
+      "grounded": 1.0,
+      "distinct": 1.0,
+      "points": {
+        "recall": 5.0,
+        "grounded": 5.0,
+        "distinct": 5.0
+      },
+      "total": 15.0,
+      "n_findings": 3,
+      "detail": {
+        "found": [
+          "ticket_01.txt",
+          "ticket_02.txt",
+          "ticket_03.txt"
+        ],
+        "missed": {}
+      }
+    },
+    "quota_down": false
+  },
+  "triage/solo": {
+    "task": "triage",
+    "version": "solo",
+    "run_id": "cmp_triage_solo_203004",
+    "status": "complete",
+    "seconds": 61.0,
+    "llm_calls": 6,
+    "tokens": 5930,
+    "retries": 0,
+    "llm_errors": 0,
+    "fallbacks": 0,
+    "reasons": [],
+    "score": {
+      "recall": 0.6666666666666666,
+      "grounded": 1.0,
+      "distinct": 1.0,
+      "points": {
+        "recall": 3.3,
+        "grounded": 5.0,
+        "distinct": 5.0
+      },
+      "total": 13.3,
+      "n_findings": 3,
+      "detail": {
+        "found": [
+          "ticket_02.txt",
+          "ticket_03.txt"
+        ],
+        "missed": {
+          "ticket_01.txt": "said medium, truth high"
+        }
+      }
+    },
+    "quota_down": false
+  },
+  "research/multi": {
+    "task": "research",
+    "version": "multi",
+    "run_id": "cmp_research_multi_203105",
+    "status": "partial",
+    "seconds": 607.3,
+    "llm_calls": 22,
+    "tokens": 40523,
+    "retries": 1,
+    "llm_errors": 1,
+    "fallbacks": 0,
+    "reasons": [
+      "s1 (SQLite facts for small web apps): unchecked - stopped: step limit reached (6 LLM calls)"
+    ],
+    "score": {
+      "recall": 1.0,
+      "grounded": 1.0,
+      "distinct": 1.0,
+      "points": {
+        "recall": 5.0,
+        "grounded": 5.0,
+        "distinct": 5.0
+      },
+      "total": 15.0,
+      "n_findings": 10,
+      "detail": {
+        "found": [
+          "SQLite is serverless / embedded",
+          "PostgreSQL is client-server",
+          "SQLite is a single file",
+          "Concurrency: writers / locking / MVCC",
+          "PostgreSQL has richer features / scale"
+        ],
+        "missed": [],
+        "distinct_sources": 2
+      }
+    },
+    "quota_down": false
+  },
+  "research/solo": {
+    "task": "research",
+    "version": "solo",
+    "run_id": "cmp_research_solo_204113",
+    "status": "complete",
+    "seconds": 553.8,
+    "llm_calls": 12,
+    "tokens": 29430,
+    "retries": 0,
+    "llm_errors": 0,
+    "fallbacks": 0,
+    "reasons": [],
+    "score": {
+      "recall": 1.0,
+      "grounded": 1.0,
+      "distinct": 1.0,
+      "points": {
+        "recall": 5.0,
+        "grounded": 5.0,
+        "distinct": 5.0
+      },
+      "total": 15.0,
+      "n_findings": 8,
+      "detail": {
+        "found": [
+          "SQLite is serverless / embedded",
+          "PostgreSQL is client-server",
+          "SQLite is a single file",
+          "Concurrency: writers / locking / MVCC",
+          "PostgreSQL has richer features / scale"
+        ],
+        "missed": [],
+        "distinct_sources": 1
+      }
+    },
+    "quota_down": false
+  }
+}

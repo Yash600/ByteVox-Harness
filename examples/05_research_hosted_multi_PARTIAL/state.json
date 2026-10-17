@@ -1,0 +1,217 @@
+{
+  "goal": "What are the main differences between SQLite and PostgreSQL for a small web app? Give sources.",
+  "status": "partial",
+  "plan": {
+    "reason": "needs web research on two databases",
+    "subtasks": [
+      {
+        "id": "s1",
+        "title": "SQLite facts for small web apps",
+        "instructions": "Find official or reputable sources (sqlite.org, well-known engineering blogs) on SQLite's features, limits, concurrency model, and suitability for small web apps. Quote each fact with its source.",
+        "kind": "research",
+        "after": []
+      },
+      {
+        "id": "s2",
+        "title": "PostgreSQL facts for small web apps",
+        "instructions": "Find official or reputable sources (postgresql.org, well-known engineering blogs) on PostgreSQL's features, limits, concurrency model, and suitability for small web apps. Quote each fact with its source.",
+        "kind": "research",
+        "after": []
+      }
+    ]
+  },
+  "subtasks": {
+    "s1": {
+      "status": "unchecked",
+      "title": "SQLite facts for small web apps",
+      "kind": "research",
+      "after": [],
+      "attempts": 1,
+      "reason": "stopped: step limit reached (6 LLM calls)",
+      "findings": [
+        {
+          "title": "SQLite is a single-file, zero-config database",
+          "severity": "high",
+          "category": "features",
+          "detail": "SQLite stores the entire database in a single cross-platform file, making it easy to install, deploy, and back up for small web apps.",
+          "evidence": [
+            {
+              "file": "web/04_www-sqlite-org-whentouse-html.txt",
+              "quote": "the resulting database is a single file that can be written to a USB memory stick or emailed to a colleague.",
+              "verified": true,
+              "url": "https://www.sqlite.org/whentouse.html",
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "SQLite works as a server-side data store",
+          "severity": "high",
+          "category": "suitability",
+          "detail": "Developers report success using SQLite as the storage engine for application-specific web servers, often faster than a client/server SQL engine in that scenario.",
+          "evidence": [
+            {
+              "file": "web/04_www-sqlite-org-whentouse-html.txt",
+              "quote": "Developers report that SQLite is often faster than a client/server SQL database engine in this scenario.",
+              "verified": true,
+              "url": "https://www.sqlite.org/whentouse.html",
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "Concurrency is managed by the server, not SQLite",
+          "severity": "medium",
+          "category": "concurrency",
+          "detail": "In the server-side pattern, the application serializes database requests, so SQLite's limited concurrent-write model is not a bottleneck for small apps.",
+          "evidence": [
+            {
+              "file": "web/04_www-sqlite-org-whentouse-html.txt",
+              "quote": "Database requests are serialized by the server, so concurrency is not an issue.",
+              "verified": true,
+              "url": "https://www.sqlite.org/whentouse.html",
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "Database sharding scales SQLite for many connections",
+          "severity": "medium",
+          "category": "concurrency",
+          "detail": "Using a separate SQLite file per user/subdomain lets a server handle hundreds or thousands of simultaneous connections, each hitting its own file.",
+          "evidence": [
+            {
+              "file": "web/04_www-sqlite-org-whentouse-html.txt",
+              "quote": "the server might have a separate SQLite database for each user, so that the server can handle hundreds or thousands of simultaneous connections",
+              "verified": true,
+              "url": "https://www.sqlite.org/whentouse.html",
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "SQLite is easier to install and use than an enterprise RDBMS",
+          "severity": "low",
+          "category": "suitability",
+          "detail": "For small apps, SQLite's main advantage over a client/server database is simpler installation and a self-contained file format.",
+          "evidence": [
+            {
+              "file": "web/04_www-sqlite-org-whentouse-html.txt",
+              "quote": "The advantage of SQLite is that it is easier to install and use and the resulting database is a single file",
+              "verified": true,
+              "url": "https://www.sqlite.org/whentouse.html",
+              "support": "ok"
+            }
+          ]
+        }
+      ]
+    },
+    "s2": {
+      "status": "accepted",
+      "title": "PostgreSQL facts for small web apps",
+      "kind": "research",
+      "after": [],
+      "attempts": 1,
+      "findings": [
+        {
+          "title": "PostgreSQL is a powerful, open-source object-relational DB",
+          "severity": "high",
+          "category": "overview",
+          "detail": "Official site describes PostgreSQL as a powerful, open source object-relational database with nearly 40 years of development.",
+          "evidence": [
+            {
+              "file": "web/06_www-postgresql-org-about.txt",
+              "quote": "PostgreSQL is a powerful, open source object-relational database system that uses and extends the SQL language combined with many features that safely store and scale the most complicated data workloads.",
+              "verified": true,
+              "url": "https://www.postgresql.org/about/",
+              "line": 33,
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "ACID-compliant since 2001",
+          "severity": "high",
+          "category": "reliability",
+          "detail": "PostgreSQL has been ACID-compliant since 2001, ensuring transactional integrity for web apps.",
+          "evidence": [
+            {
+              "file": "web/06_www-postgresql-org-about.txt",
+              "quote": "PostgreSQL runs on all major operating systems , has been ACID -compliant since 2001, and has powerful add-ons such as the popular PostGIS geospatial database extender.",
+              "verified": true,
+              "url": "https://www.postgresql.org/about/",
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "MVCC concurrency model",
+          "severity": "high",
+          "category": "concurrency",
+          "detail": "PostgreSQL uses Multi-Version Concurrency Control (MVCC) for concurrent read/write operations without blocking.",
+          "evidence": [
+            {
+              "file": "web/06_www-postgresql-org-about.txt",
+              "quote": "Multi-Version concurrency Control (MVCC)",
+              "verified": true,
+              "url": "https://www.postgresql.org/about/",
+              "line": 76,
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "SQL:2023 Core conformance",
+          "severity": "medium",
+          "category": "standards",
+          "detail": "As of v18 (Sept 2025), PostgreSQL conforms to at least 170 of 177 mandatory SQL:2023 Core features.",
+          "evidence": [
+            {
+              "file": "web/06_www-postgresql-org-about.txt",
+              "quote": "As of the version 18 release in September 2025, PostgreSQL conforms to at least 170 of the 177 mandatory features for SQL:2023 Core conformance.",
+              "verified": true,
+              "url": "https://www.postgresql.org/about/",
+              "line": 55,
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "Rich data types and extensibility",
+          "severity": "medium",
+          "category": "features",
+          "detail": "Supports JSON/JSONB, arrays, UUIDs, custom types, and procedural languages (Python, Perl, etc.) for flexible web app storage.",
+          "evidence": [
+            {
+              "file": "web/06_www-postgresql-org-about.txt",
+              "quote": "Document: JSON/JSONB, XML, Key-value (Hstore)",
+              "verified": true,
+              "url": "https://www.postgresql.org/about/",
+              "line": 62,
+              "support": "ok"
+            }
+          ]
+        }
+      ],
+      "summary": "PostgreSQL is a powerful, open-source, ACID-compliant object-relational database with MVCC concurrency, rich data types, and SQL:2023 conformance, making it suitable for small web apps needing reliability and extensibility.",
+      "feedback": "All quotes verified in the official postgresql.org/about page; findings are on-topic, accurate, and properly sourced."
+    }
+  },
+  "warnings": [],
+  "report_path": "D:\\ByteVox\\runs\\cmp_research_multi_203105\\report.md",
+  "budget": {
+    "calls": 22,
+    "max_calls": 60,
+    "tokens": 40523,
+    "max_tokens": 120000,
+    "seconds": 607.3,
+    "max_seconds": 900
+  },
+  "stats": {
+    "retries": 1,
+    "llm_errors": 1,
+    "injections_flagged": 0,
+    "tool_denied": 0,
+    "fallbacks": 0
+  }
+}

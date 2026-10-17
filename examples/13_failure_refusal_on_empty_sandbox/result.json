@@ -1,0 +1,8 @@
+{
+  "status": "refused",
+  "reasons": [
+    "analysis requires code execution or access to private data which are not provided in the sandbox files."
+  ],
+  "summary": "",
+  "findings": []
+}

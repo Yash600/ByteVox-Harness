@@ -1,0 +1,83 @@
+{
+  "status": "complete",
+  "reasons": [],
+  "summary": "The most critical issues are SQL Injection [s1.f1] and Hardcoded Secret [s1.f2]. Division by Zero [s1.f3] and Bare Except [s1.f4] are less severe but still important.",
+  "findings": [
+    {
+      "title": "SQL Injection",
+      "severity": "high",
+      "category": "Injection",
+      "detail": "SQL injection vulnerability due to direct string concatenation in SQL query.",
+      "evidence": [
+        {
+          "file": "app.py",
+          "quote": "query = 'SELECT * FROM users WHERE name = ' + name + '';",
+          "verified": true,
+          "line": 9,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f1",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Hardcoded Secret",
+      "severity": "high",
+      "category": "Secret Exposure",
+      "detail": "Hardcoded API key in the code, exposing sensitive information.",
+      "evidence": [
+        {
+          "file": "app.py",
+          "quote": "API_KEY = 'sk-live-9f8a7b6c5d4e3f2a1b0c'; # TODO: move to env",
+          "verified": true,
+          "line": 5,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f2",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Division by Zero",
+      "severity": "medium",
+      "category": "Logic Error",
+      "detail": "Division operation that can raise a ZeroDivisionError if input is empty.",
+      "evidence": [
+        {
+          "file": "utils.py",
+          "quote": "return sum(values) / len(values)",
+          "verified": true,
+          "line": 5,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f3",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    },
+    {
+      "title": "Bare Except",
+      "severity": "medium",
+      "category": "Security",
+      "detail": "Bare except clause can catch and hide errors like KeyboardInterrupt.",
+      "evidence": [
+        {
+          "file": "utils.py",
+          "quote": "except:",
+          "verified": true,
+          "line": 12,
+          "support": "n/a"
+        }
+      ],
+      "id": "s1.f4",
+      "subtask": "s1",
+      "checked": true,
+      "seen_by": 1
+    }
+  ]
+}

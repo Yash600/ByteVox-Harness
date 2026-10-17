@@ -1,0 +1,87 @@
+{
+  "goal": "Triage these support tickets by urgency (high, medium or low) and category. Set each finding's severity to the ticket's urgency and quote the ticket.",
+  "status": "complete",
+  "plan": null,
+  "subtasks": {
+    "solo": {
+      "status": "accepted",
+      "title": "Single agent does everything",
+      "kind": "solo",
+      "findings": [
+        {
+          "title": "Cannot log in since the update",
+          "severity": "high",
+          "category": "Bug / Outage",
+          "detail": "Login page returns error 500 for all attempts after update; whole team blocked, user requests escalation.",
+          "evidence": [
+            {
+              "file": "ticket_03.txt",
+              "quote": "Since yesterday's update the login page shows error 500 for every attempt. Our whole team is blocked.",
+              "verified": true,
+              "line": 3,
+              "support": "ok"
+            }
+          ],
+          "id": "solo.f1",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "Charged twice for March invoice",
+          "severity": "medium",
+          "category": "Billing",
+          "detail": "Duplicate charge on invoice 4471; refund needed before finance closes books Friday.",
+          "evidence": [
+            {
+              "file": "ticket_01.txt",
+              "quote": "I was billed twice for invoice 4471 on March 3rd. Please refund the duplicate charge.",
+              "verified": true,
+              "line": 3,
+              "support": "ok"
+            }
+          ],
+          "id": "solo.f2",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "Feature request - CSV export",
+          "severity": "low",
+          "category": "Feature Request",
+          "detail": "Request to export dashboard reports as CSV; user explicitly notes it is not urgent.",
+          "evidence": [
+            {
+              "file": "ticket_02.txt",
+              "quote": "It would be great if the dashboard could export reports as CSV. Not urgent, just a nice to have.",
+              "verified": true,
+              "line": 3,
+              "support": "ok"
+            }
+          ],
+          "id": "solo.f3",
+          "subtask": "solo",
+          "checked": false
+        }
+      ],
+      "summary": "Triaged 3 support tickets: ticket_03 (login 500 error, team blocked) is high urgency; ticket_01 (double billing, finance deadline) is medium; ticket_02 (CSV export feature request) is low.",
+      "attempts": 1
+    }
+  },
+  "warnings": [],
+  "report_path": null,
+  "budget": {
+    "calls": 6,
+    "max_calls": 60,
+    "tokens": 5930,
+    "max_tokens": 120000,
+    "seconds": 61.0,
+    "max_seconds": 900
+  },
+  "stats": {
+    "retries": 0,
+    "llm_errors": 0,
+    "injections_flagged": 0,
+    "tool_denied": 0,
+    "fallbacks": 0
+  }
+}

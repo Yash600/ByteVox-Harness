@@ -1,0 +1,12 @@
+# run output, uploads and logs are generated, not source
+runs/
+uploads/
+*.log
+*.out.log
+*.err.log
+__pycache__/
+*.pyc
+.env
+.env.*
+# keep the curated, committed evidence
+!examples/

@@ -1,0 +1,8 @@
+# The harness, the web UI and the tests use ONLY the Python standard library (Python 3.9+).
+# There is nothing to pip install.
+#
+# Optional, outside Python:
+#   Ollama   https://ollama.com        local model, no key needed   (ollama pull qwen2.5:3b)
+#   Groq     https://console.groq.com  hosted model, free key       (env GROQ_API_KEY)
+#   Tavily   https://tavily.com        web search, free key         (env TAVILY_API_KEY, optional;
+#                                      without it web search falls back to DuckDuckGo/Bing/Wikipedia)

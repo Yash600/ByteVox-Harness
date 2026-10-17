@@ -1,0 +1,48 @@
+{
+  "status": "partial",
+  "reasons": [
+    "s1 (Find urgency definitions): unverified - checker still rejected after 3 attempts: The result does not contain any urgency definitions found in official documentation or reputable sources as instructed.",
+    "s2 (Analyze ticket_01.txt): failed - model kept returning invalid output: field `action` must be \"tool\" or \"final\""
+  ],
+  "summary": "The most urgent ticket is [s2.f1] for category finance with severity high. The least urgent ticket is [s3.f1] for category Feature Request with severity low.",
+  "findings": [
+    {
+      "title": "ticket_01",
+      "severity": "high",
+      "category": "finance",
+      "detail": "Ticket requires immediate attention due to duplicate billing.",
+      "evidence": [
+        {
+          "file": "ticket_01.txt",
+          "quote": "This is urgent, our finance team closes the books on Friday.",
+          "verified": true,
+          "line": 4,
+          "support": "weak"
+        }
+      ],
+      "id": "s2.f1",
+      "subtask": "s2",
+      "checked": false,
+      "seen_by": 1
+    },
+    {
+      "title": "Ticket 02",
+      "severity": "low",
+      "category": "Feature Request",
+      "detail": "The ticket is a feature request for CSV export and is marked as not urgent.",
+      "evidence": [
+        {
+          "file": "ticket_02.txt",
+          "quote": "It would be great if the dashboard could export reports as CSV. Not urgent, just a nice to have.",
+          "verified": true,
+          "line": 3,
+          "support": "ok"
+        }
+      ],
+      "id": "s3.f1",
+      "subtask": "s3",
+      "checked": true,
+      "seen_by": 1
+    }
+  ]
+}

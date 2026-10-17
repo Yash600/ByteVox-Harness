@@ -1,0 +1,69 @@
+{
+  "goal": "Review this repo for bugs https://github.com/Yash600/Kestral-Service-Banao-Tech.git and security issues. Produce a prioritized list with evidence.",
+  "status": "partial",
+  "plan": {
+    "reason": "The repo is a small Python/Flask project that can be reviewed for bugs and security issues by reading the source files.",
+    "subtasks": [
+      {
+        "id": "s1",
+        "title": "Security review of web app and config",
+        "instructions": "Read kestrel-router/app.py, kestrel-router/static/index.html, kestrel-router/requirements.txt, requirements-dev.txt, .gitignore, and .claude/launch.json. Look for security issues: hardcoded secrets/API keys/tokens, injection (SQL, command, template), unsafe deserialization, missing input validation, CORS misconfiguration, debug mode enabled in production, exposed endpoints, secrets in committed files, insecure dependencies, and any sensitive data in static files or config. Quote exact lines as evidence for each finding.",
+        "kind": "analyze"
+      },
+      {
+        "id": "s2",
+        "title": "Correctness/bug review of core router logic",
+        "instructions": "Read kestrel-router/kestrel/router.py, kestrel/jev_router.py, kestrel/data.py, kestrel/text.py, kestrel/__init__.py, plus train.py, evaluate.py, evaluate_jev.py, and experiments/compare_models.py. Look for logic bugs: incorrect routing decisions, off-by-one or boundary errors, unhandled exceptions, incorrect data handling, wrong variable usage, race conditions, broken imports, and inconsistencies between router and jev_router. Quote exact code lines as evidence for each bug found.",
+        "kind": "analyze"
+      },
+      {
+        "id": "s3",
+        "title": "Data, docs and repo hygiene review",
+        "instructions": "Read kestrel-router/predictions.csv, evaluation/metrics.json, evaluation/report.md, evaluation/experiments.md, evaluation/vague_requests.md, README.md (both root and kestrel-router), memo_to_ritu.md, memo_to_ritu.html, recording_script.md, and email-thread.txt. Look for: sensitive/personal data committed to the repo (PII, credentials, internal emails), inconsistencies between docs and code, stale or misleading documentation, and any data-quality issues in predictions.csv or metrics.json that indicate bugs. Quote specific content as evidence.",
+        "kind": "analyze"
+      }
+    ]
+  },
+  "subtasks": {
+    "s1": {
+      "status": "skipped",
+      "title": "Security review of web app and config",
+      "kind": "analyze",
+      "attempts": 1,
+      "reason": "stopped: time limit reached (420s)",
+      "findings": []
+    },
+    "s2": {
+      "status": "skipped",
+      "title": "Correctness/bug review of core router logic",
+      "kind": "analyze",
+      "attempts": 1,
+      "reason": "stopped: time limit reached (420s)",
+      "findings": []
+    },
+    "s3": {
+      "status": "skipped",
+      "title": "Data, docs and repo hygiene review",
+      "kind": "analyze",
+      "attempts": 1,
+      "reason": "stopped: time limit reached (420s)",
+      "findings": []
+    }
+  },
+  "warnings": [],
+  "report_path": "D:\\ByteVox\\runs\\run_20261016_140124_2d50\\report.md",
+  "budget": {
+    "calls": 11,
+    "max_calls": 40,
+    "tokens": 20518,
+    "max_tokens": 150000,
+    "seconds": 849.3,
+    "max_seconds": 900.0
+  },
+  "stats": {
+    "retries": 9,
+    "llm_errors": 9,
+    "injections_flagged": 0,
+    "tool_denied": 0
+  }
+}

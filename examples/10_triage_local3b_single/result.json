@@ -1,0 +1,32 @@
+{
+  "status": "complete",
+  "reasons": [],
+  "summary": "Based on the information found, the tickets should be triaged based on the ticket triage process described in the LiveAgent blog post. The process includes understanding the ticket triage process, setting up the process, and following the steps.",
+  "findings": [
+    {
+      "title": "ticket_01.txt",
+      "severity": "high",
+      "category": "urgent",
+      "detail": "Ticket 01 is the most urgent as it is the first step in setting up a ticket triage process.",
+      "evidence": [
+        {
+          "file": "ticket_01.txt",
+          "quote": "What is the first step in setting up a ticket triage process?",
+          "verified": false
+        },
+        {
+          "file": "web/02_www-liveagent-com-blog-ticket-triage-a-c.txt",
+          "quote": "What is the first step in setting up a ticket triage process?",
+          "verified": true,
+          "url": "https://www.liveagent.com/blog/ticket-triage-a-complete-guide-to-categorization-prioritization-and-routing/",
+          "line": 411,
+          "support": "ok"
+        }
+      ],
+      "id": "solo.f1",
+      "subtask": "solo",
+      "checked": false
+    }
+  ],
+  "mode": "baseline"
+}

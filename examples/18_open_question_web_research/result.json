@@ -1,0 +1,128 @@
+{
+  "status": "partial",
+  "reasons": [
+    "s1 (Ayurveda history and philosophy): skipped - stopped: time limit reached (900s)",
+    "s2 (Ayurveda practices and modern relevance): skipped - stopped: time limit reached (900s)",
+    "assembler unavailable (run: time limit reached (900s)); findings sorted by severity instead"
+  ],
+  "summary": "6 finding(s) were verified. The most important: No evidence for cancer cure [s2.f3]; Historical origins in Vedic/Buddhist texts [s1.f1]; Classical texts dated to first centuries CE [s1.f2]; Core Ayurvedic therapies [s2.f1].",
+  "findings": [
+    {
+      "title": "No evidence for cancer cure",
+      "severity": "high",
+      "category": "modern research",
+      "detail": "There is no evidence that cancer can be treated or cured through Ayurveda.",
+      "evidence": [
+        {
+          "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+          "quote": "There is no evidence that cancer can be treated or cured through Ayurveda.",
+          "verified": true,
+          "url": "https://en.wikipedia.org/wiki/Ayurveda",
+          "line": 1107,
+          "support": "ok"
+        }
+      ],
+      "id": "s2.f3",
+      "subtask": "s2",
+      "checked": false,
+      "seen_by": 1
+    },
+    {
+      "title": "Historical origins in Vedic/Buddhist texts",
+      "severity": "medium",
+      "category": "history",
+      "detail": "Ayurvedic terminology and concepts appear in the Buddhist Canon from the middle of the first millennium BCE onwards.",
+      "evidence": [
+        {
+          "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+          "quote": "Historical evidence for Ayurvedic terminology and concepts appear in the Buddhist Canon from the middle of the first millennium BCE onwards.",
+          "verified": true,
+          "url": "https://en.wikipedia.org/wiki/Ayurveda",
+          "support": "ok"
+        }
+      ],
+      "id": "s1.f1",
+      "subtask": "s1",
+      "checked": false,
+      "seen_by": 1
+    },
+    {
+      "title": "Classical texts dated to first centuries CE",
+      "severity": "medium",
+      "category": "history",
+      "detail": "The main classical Ayurveda texts are datable in their present form to the first centuries CE, beginning with accounts of knowledge transmission from gods to sages.",
+      "evidence": [
+        {
+          "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+          "quote": "The main classical Ayurveda texts are datable in their present form to the first centuries CE.",
+          "verified": true,
+          "url": "https://en.wikipedia.org/wiki/Ayurveda",
+          "line": 1179,
+          "support": "ok"
+        }
+      ],
+      "id": "s1.f2",
+      "subtask": "s1",
+      "checked": false,
+      "seen_by": 1
+    },
+    {
+      "title": "Core Ayurvedic therapies",
+      "severity": "medium",
+      "category": "practices",
+      "detail": "Ayurveda therapies include herbal medicines, special diets, meditation, yoga, massage, laxatives, enemas, and medical oils.",
+      "evidence": [
+        {
+          "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+          "quote": "Therapies include herbal medicines , special diets , meditation , yoga , massage , laxatives , enemas , and medical oils.",
+          "verified": true,
+          "url": "https://en.wikipedia.org/wiki/Ayurveda",
+          "support": "ok"
+        }
+      ],
+      "id": "s2.f1",
+      "subtask": "s2",
+      "checked": false,
+      "seen_by": 1
+    },
+    {
+      "title": "Panchakarma detoxification",
+      "severity": "medium",
+      "category": "practices",
+      "detail": "Panchakarma are techniques to eliminate toxic elements from the body, performed in sequence to restore balance through purgation.",
+      "evidence": [
+        {
+          "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+          "quote": "According to Ayurveda, panchakarma are techniques to eliminate toxic elements from the body .",
+          "verified": true,
+          "url": "https://en.wikipedia.org/wiki/Ayurveda",
+          "support": "ok"
+        }
+      ],
+      "id": "s2.f2",
+      "subtask": "s2",
+      "checked": false,
+      "seen_by": 1
+    },
+    {
+      "title": "Global market size",
+      "severity": "low",
+      "category": "modern relevance",
+      "detail": "According to industry research, the global Ayurveda market was worth US$4.5 billion in 2017.",
+      "evidence": [
+        {
+          "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+          "quote": "According to industry research, the global Ayurveda market was worth US$4.5 billion in 2017.",
+          "verified": true,
+          "url": "https://en.wikipedia.org/wiki/Ayurveda",
+          "line": 1911,
+          "support": "ok"
+        }
+      ],
+      "id": "s2.f4",
+      "subtask": "s2",
+      "checked": false,
+      "seen_by": 1
+    }
+  ]
+}

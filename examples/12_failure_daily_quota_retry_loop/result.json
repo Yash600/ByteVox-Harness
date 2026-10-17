@@ -1,0 +1,10 @@
+{
+  "status": "partial",
+  "reasons": [
+    "s1 (Security review of web app and config): skipped - stopped: time limit reached (420s)",
+    "s2 (Correctness/bug review of core router logic): skipped - stopped: time limit reached (420s)",
+    "s3 (Data, docs and repo hygiene review): skipped - stopped: time limit reached (420s)"
+  ],
+  "summary": "",
+  "findings": []
+}

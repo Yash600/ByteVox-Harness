@@ -1,0 +1,149 @@
+{
+  "code/multi": {
+    "task": "code",
+    "version": "multi",
+    "run_id": "cmp_code_multi_205133",
+    "status": "complete",
+    "seconds": 229.7,
+    "llm_calls": 14,
+    "tokens": 15114,
+    "retries": 0,
+    "llm_errors": 0,
+    "fallbacks": 0,
+    "reasons": [],
+    "score": {
+      "recall": 0.6666666666666666,
+      "grounded": 1.0,
+      "distinct": 1.0,
+      "points": {
+        "recall": 3.3,
+        "grounded": 5.0,
+        "distinct": 5.0
+      },
+      "total": 13.3,
+      "n_findings": 4,
+      "detail": {
+        "found": [
+          "SQL injection",
+          "Hardcoded API key",
+          "Division by zero on empty list",
+          "Bare except"
+        ],
+        "missed": [
+          "Unclosed file handle",
+          "is_adult boundary (> 18)"
+        ]
+      }
+    },
+    "quota_down": false
+  },
+  "code/solo": {
+    "task": "code",
+    "version": "solo",
+    "run_id": "cmp_code_solo_205523",
+    "status": "complete",
+    "seconds": 287.1,
+    "llm_calls": 12,
+    "tokens": 27653,
+    "retries": 1,
+    "llm_errors": 1,
+    "fallbacks": 0,
+    "reasons": [],
+    "score": {
+      "recall": 0.0,
+      "grounded": 1.0,
+      "distinct": 1.0,
+      "points": {
+        "recall": 0.0,
+        "grounded": 5.0,
+        "distinct": 5.0
+      },
+      "total": 10.0,
+      "n_findings": 2,
+      "detail": {
+        "found": [],
+        "missed": [
+          "SQL injection",
+          "Hardcoded API key",
+          "Division by zero on empty list",
+          "Bare except",
+          "Unclosed file handle",
+          "is_adult boundary (> 18)"
+        ]
+      }
+    },
+    "quota_down": false
+  },
+  "triage/multi": {
+    "task": "triage",
+    "version": "multi",
+    "run_id": "cmp_triage_multi_210010",
+    "status": "partial",
+    "seconds": 186.8,
+    "llm_calls": 28,
+    "tokens": 23977,
+    "retries": 0,
+    "llm_errors": 0,
+    "fallbacks": 0,
+    "reasons": [
+      "s1 (Find urgency definitions): unverified - checker still rejected after 3 attempts: The result does not contain any urgency definitions found in official documentation or reputable sources as instructed.",
+      "s2 (Analyze ticket_01.txt): failed - model kept returning invalid output: field `action` must be \"tool\" or \"final\""
+    ],
+    "score": {
+      "recall": 0.6666666666666666,
+      "grounded": 1.0,
+      "distinct": 1.0,
+      "points": {
+        "recall": 3.3,
+        "grounded": 5.0,
+        "distinct": 5.0
+      },
+      "total": 13.3,
+      "n_findings": 2,
+      "detail": {
+        "found": [
+          "ticket_01.txt",
+          "ticket_02.txt"
+        ],
+        "missed": {
+          "ticket_03.txt": "not triaged"
+        }
+      }
+    },
+    "quota_down": false
+  },
+  "triage/solo": {
+    "task": "triage",
+    "version": "solo",
+    "run_id": "cmp_triage_solo_210317",
+    "status": "complete",
+    "seconds": 171.5,
+    "llm_calls": 14,
+    "tokens": 33077,
+    "retries": 0,
+    "llm_errors": 0,
+    "fallbacks": 0,
+    "reasons": [],
+    "score": {
+      "recall": 0.0,
+      "grounded": 1.0,
+      "distinct": 1.0,
+      "points": {
+        "recall": 0.0,
+        "grounded": 5.0,
+        "distinct": 5.0
+      },
+      "total": 10.0,
+      "n_findings": 1,
+      "detail": {
+        "found": [],
+        "missed": {
+          "ticket_01.txt": "not triaged",
+          "ticket_02.txt": "not triaged",
+          "ticket_03.txt": "not triaged"
+        }
+      }
+    },
+    "quota_down": false
+  }
+}

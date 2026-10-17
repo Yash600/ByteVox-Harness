@@ -1,0 +1,2 @@
+ADMIN = False
+DEBUG = False

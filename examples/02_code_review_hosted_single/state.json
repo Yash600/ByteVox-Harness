@@ -1,0 +1,130 @@
+{
+  "goal": "Review this repo for bugs and security issues. Produce a prioritized list with evidence.",
+  "status": "complete",
+  "plan": null,
+  "subtasks": {
+    "solo": {
+      "status": "accepted",
+      "title": "Single agent does everything",
+      "kind": "solo",
+      "findings": [
+        {
+          "title": "Hardcoded live API key",
+          "severity": "high",
+          "category": "security",
+          "detail": "A live secret key is committed in source; should be loaded from environment/secret store.",
+          "evidence": [
+            {
+              "file": "app.py",
+              "quote": "API_KEY = \"sk-live-9f8a7b6c5d4e3f2a1b0c\"  # TODO: move to env",
+              "verified": true,
+              "line": 5,
+              "support": "n/a"
+            }
+          ],
+          "id": "solo.f1",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "SQL injection in get_user",
+          "severity": "high",
+          "category": "security",
+          "detail": "User input is concatenated directly into the SQL query, allowing injection.",
+          "evidence": [
+            {
+              "file": "app.py",
+              "quote": "query = \"SELECT * FROM users WHERE name = '\" + name + \"'\"",
+              "verified": true,
+              "line": 9,
+              "support": "n/a"
+            }
+          ],
+          "id": "solo.f2",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "Division by zero in average",
+          "severity": "medium",
+          "category": "bug",
+          "detail": "average([]) raises ZeroDivisionError; main() calls report_scores([]) which triggers it.",
+          "evidence": [
+            {
+              "file": "utils.py",
+              "quote": "return sum(values) / len(values)",
+              "verified": true,
+              "line": 5,
+              "support": "n/a"
+            },
+            {
+              "file": "app.py",
+              "quote": "print(report_scores([]))",
+              "verified": true,
+              "line": 21,
+              "support": "n/a"
+            }
+          ],
+          "id": "solo.f3",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "Bare except swallows all errors",
+          "severity": "medium",
+          "category": "bug",
+          "detail": "load_config catches every exception (including KeyboardInterrupt) and returns {}, hiding real failures.",
+          "evidence": [
+            {
+              "file": "utils.py",
+              "quote": "    except:",
+              "verified": true,
+              "line": 12,
+              "support": "n/a"
+            }
+          ],
+          "id": "solo.f4",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "File handle not closed",
+          "severity": "low",
+          "category": "bug",
+          "detail": "load_config opens the file without a context manager, leaking the handle on error paths.",
+          "evidence": [
+            {
+              "file": "utils.py",
+              "quote": "    f = open(path)",
+              "verified": true,
+              "line": 9,
+              "support": "n/a"
+            }
+          ],
+          "id": "solo.f5",
+          "subtask": "solo",
+          "checked": false
+        }
+      ],
+      "summary": "The repo has a hardcoded live API key, a SQL injection vulnerability, a division-by-zero bug, and a bare except that swallows errors. These are the main issues to fix.",
+      "attempts": 1
+    }
+  },
+  "warnings": [],
+  "report_path": null,
+  "budget": {
+    "calls": 2,
+    "max_calls": 60,
+    "tokens": 2145,
+    "max_tokens": 120000,
+    "seconds": 1.3,
+    "max_seconds": 900
+  },
+  "stats": {
+    "retries": 0,
+    "llm_errors": 0,
+    "injections_flagged": 0,
+    "tool_denied": 0,
+    "fallbacks": 0
+  }
+}

@@ -1,0 +1,185 @@
+{
+  "goal": "What are the main differences between SQLite and PostgreSQL for a small web app? Give sources.",
+  "status": "complete",
+  "plan": null,
+  "subtasks": {
+    "solo": {
+      "status": "accepted",
+      "title": "Single agent does everything",
+      "kind": "solo",
+      "findings": [
+        {
+          "title": "Architecture: embedded vs client-server",
+          "severity": "medium",
+          "category": "architecture",
+          "detail": "SQLite is an embedded, serverless single-file library; PostgreSQL is a client-server RDBMS needing install and administration.",
+          "evidence": [
+            {
+              "file": "web/04_airbyte-com-data-engineering-resources-s.txt",
+              "quote": "Type\nEmbedded, serverless (single file)\nClient-server RDBMS",
+              "verified": true,
+              "url": "https://airbyte.com/data-engineering-resources/sqlite-vs-postgresql",
+              "line": 34,
+              "support": "ok"
+            }
+          ],
+          "id": "solo.f1",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "Concurrency model",
+          "severity": "high",
+          "category": "concurrency",
+          "detail": "SQLite allows a single writer with file-level locking; PostgreSQL uses MVCC supporting many concurrent readers and writers.",
+          "evidence": [
+            {
+              "file": "web/04_airbyte-com-data-engineering-resources-s.txt",
+              "quote": "Concurrency\nSingle writer, file-level locking\nHigh (MVCC, many concurrent writers)",
+              "verified": true,
+              "url": "https://airbyte.com/data-engineering-resources/sqlite-vs-postgresql",
+              "line": 40,
+              "support": "ok"
+            }
+          ],
+          "id": "solo.f2",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "Setup and operational overhead",
+          "severity": "medium",
+          "category": "operations",
+          "detail": "SQLite is zero-config with no server process; PostgreSQL must be installed, configured, and administered.",
+          "evidence": [
+            {
+              "file": "web/04_airbyte-com-data-engineering-resources-s.txt",
+              "quote": "Setup\nZero-config, no server\nInstall, configure, and administer",
+              "verified": true,
+              "url": "https://airbyte.com/data-engineering-resources/sqlite-vs-postgresql",
+              "line": 43,
+              "support": "ok"
+            }
+          ],
+          "id": "solo.f3",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "Best-fit use cases",
+          "severity": "medium",
+          "category": "use-case",
+          "detail": "SQLite suits embedded apps, mobile, prototyping, and edge; PostgreSQL suits multi-user, enterprise, and complex-query workloads.",
+          "evidence": [
+            {
+              "file": "web/04_airbyte-com-data-engineering-resources-s.txt",
+              "quote": "Best for\nEmbedded apps, mobile, prototyping, edge\nMulti-user, enterprise, complex queries",
+              "verified": true,
+              "url": "https://airbyte.com/data-engineering-resources/sqlite-vs-postgresql",
+              "line": 37,
+              "support": "ok"
+            }
+          ],
+          "id": "solo.f4",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "Scalability",
+          "severity": "medium",
+          "category": "scale",
+          "detail": "SQLite targets small-to-medium local data; PostgreSQL scales to large datasets and high load.",
+          "evidence": [
+            {
+              "file": "web/04_airbyte-com-data-engineering-resources-s.txt",
+              "quote": "Scale\nSmall to medium, local\nLarge datasets, high load",
+              "verified": true,
+              "url": "https://airbyte.com/data-engineering-resources/sqlite-vs-postgresql",
+              "line": 46,
+              "support": "ok"
+            }
+          ],
+          "id": "solo.f5",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "SQL feature support",
+          "severity": "low",
+          "category": "features",
+          "detail": "SQLite supports advanced SQL (partial indexes, JSON, window functions, recursive queries) but PostgreSQL has broader extensibility and richer features.",
+          "evidence": [
+            {
+              "file": "web/04_airbyte-com-data-engineering-resources-s.txt",
+              "quote": "Full-Featured SQL Implementation:\nDespite its lightweight design, SQLite supports\nadvanced SQL features\nincluding partial indexes, comprehensive JSON handling, window functions, and recursive queries",
+              "verified": true,
+              "url": "https://airbyte.com/data-engineering-resources/sqlite-vs-postgresql",
+              "line": 58,
+              "support": "ok"
+            }
+          ],
+          "id": "solo.f6",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "ACID compliance",
+          "severity": "low",
+          "category": "reliability",
+          "detail": "Both provide ACID transactions; SQLite implements complete serializable ACID transactions.",
+          "evidence": [
+            {
+              "file": "web/04_airbyte-com-data-engineering-resources-s.txt",
+              "quote": "ACID Transactions:\nSQLite implements complete serializable\nACID transactions",
+              "verified": true,
+              "url": "https://airbyte.com/data-engineering-resources/sqlite-vs-postgresql",
+              "line": 64,
+              "support": "ok"
+            }
+          ],
+          "id": "solo.f7",
+          "subtask": "solo",
+          "checked": false
+        },
+        {
+          "title": "Licensing",
+          "severity": "low",
+          "category": "license",
+          "detail": "SQLite is public domain; PostgreSQL uses a permissive open-source license.",
+          "evidence": [
+            {
+              "file": "web/04_airbyte-com-data-engineering-resources-s.txt",
+              "quote": "License\nPublic domain\nPermissive open-source (PostgreSQL License)",
+              "verified": true,
+              "url": "https://airbyte.com/data-engineering-resources/sqlite-vs-postgresql",
+              "line": 49,
+              "support": "ok"
+            }
+          ],
+          "id": "solo.f8",
+          "subtask": "solo",
+          "checked": false
+        }
+      ],
+      "summary": "For a small web app, the main differences are architecture, concurrency, and operational overhead. SQLite is an embedded, serverless, single-file database library with zero configuration, ideal for lightweight/prototyping apps, but it uses file-level locking with a single writer at a time. PostgreSQL is a client-server RDBMS that requires installation and administration, but offers high concurrency via MVCC (many concurrent readers/writers), richer SQL features, and scales to large datasets and high load. For a small app with modest traffic, SQLite is simpler and faster to deploy; if you expect concurrent writes, complex queries, or growth, PostgreSQL is the safer choice.",
+      "attempts": 1
+    }
+  },
+  "warnings": [],
+  "report_path": null,
+  "budget": {
+    "calls": 12,
+    "max_calls": 60,
+    "tokens": 29430,
+    "max_tokens": 120000,
+    "seconds": 553.8,
+    "max_seconds": 900
+  },
+  "stats": {
+    "retries": 0,
+    "llm_errors": 0,
+    "injections_flagged": 0,
+    "tool_denied": 0,
+    "fallbacks": 0
+  }
+}

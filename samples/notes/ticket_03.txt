@@ -1,0 +1,4 @@
+From: lee@example.com
+Subject: Cannot log in since the update
+Since yesterday's update the login page shows error 500 for every attempt. Our whole team is blocked.
+Please escalate, this is critical.

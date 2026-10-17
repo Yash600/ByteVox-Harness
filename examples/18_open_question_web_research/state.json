@@ -1,0 +1,157 @@
+{
+  "goal": "tell some great facts about ayurveda",
+  "status": "partial",
+  "plan": {
+    "reason": "needs web research to find facts about ayurveda",
+    "subtasks": [
+      {
+        "id": "s1",
+        "title": "Ayurveda history and philosophy",
+        "instructions": "Find reputable sources on the history, origins, and core philosophical principles of Ayurveda (e.g., the three doshas, the concept of Prakriti). Quote each fact with its source.",
+        "kind": "research",
+        "after": []
+      },
+      {
+        "id": "s2",
+        "title": "Ayurveda practices and modern relevance",
+        "instructions": "Find reputable sources on common Ayurvedic practices (herbal remedies, diet, yoga, Panchakarma) and any modern scientific research or recognition of Ayurveda. Quote each fact with its source.",
+        "kind": "research",
+        "after": []
+      }
+    ]
+  },
+  "subtasks": {
+    "s1": {
+      "status": "skipped",
+      "title": "Ayurveda history and philosophy",
+      "kind": "research",
+      "after": [],
+      "attempts": 2,
+      "reason": "stopped: time limit reached (900s)",
+      "findings": [
+        {
+          "title": "Historical origins in Vedic/Buddhist texts",
+          "severity": "medium",
+          "category": "history",
+          "detail": "Ayurvedic terminology and concepts appear in the Buddhist Canon from the middle of the first millennium BCE onwards.",
+          "evidence": [
+            {
+              "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+              "quote": "Historical evidence for Ayurvedic terminology and concepts appear in the Buddhist Canon from the middle of the first millennium BCE onwards.",
+              "verified": true,
+              "url": "https://en.wikipedia.org/wiki/Ayurveda",
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "Classical texts dated to first centuries CE",
+          "severity": "medium",
+          "category": "history",
+          "detail": "The main classical Ayurveda texts are datable in their present form to the first centuries CE, beginning with accounts of knowledge transmission from gods to sages.",
+          "evidence": [
+            {
+              "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+              "quote": "The main classical Ayurveda texts are datable in their present form to the first centuries CE.",
+              "verified": true,
+              "url": "https://en.wikipedia.org/wiki/Ayurveda",
+              "line": 1179,
+              "support": "ok"
+            }
+          ]
+        }
+      ]
+    },
+    "s2": {
+      "status": "skipped",
+      "title": "Ayurveda practices and modern relevance",
+      "kind": "research",
+      "after": [],
+      "attempts": 3,
+      "reason": "stopped: time limit reached (900s)",
+      "findings": [
+        {
+          "title": "Core Ayurvedic therapies",
+          "severity": "medium",
+          "category": "practices",
+          "detail": "Ayurveda therapies include herbal medicines, special diets, meditation, yoga, massage, laxatives, enemas, and medical oils.",
+          "evidence": [
+            {
+              "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+              "quote": "Therapies include herbal medicines , special diets , meditation , yoga , massage , laxatives , enemas , and medical oils.",
+              "verified": true,
+              "url": "https://en.wikipedia.org/wiki/Ayurveda",
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "Panchakarma detoxification",
+          "severity": "medium",
+          "category": "practices",
+          "detail": "Panchakarma are techniques to eliminate toxic elements from the body, performed in sequence to restore balance through purgation.",
+          "evidence": [
+            {
+              "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+              "quote": "According to Ayurveda, panchakarma are techniques to eliminate toxic elements from the body .",
+              "verified": true,
+              "url": "https://en.wikipedia.org/wiki/Ayurveda",
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "No evidence for cancer cure",
+          "severity": "high",
+          "category": "modern research",
+          "detail": "There is no evidence that cancer can be treated or cured through Ayurveda.",
+          "evidence": [
+            {
+              "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+              "quote": "There is no evidence that cancer can be treated or cured through Ayurveda.",
+              "verified": true,
+              "url": "https://en.wikipedia.org/wiki/Ayurveda",
+              "line": 1107,
+              "support": "ok"
+            }
+          ]
+        },
+        {
+          "title": "Global market size",
+          "severity": "low",
+          "category": "modern relevance",
+          "detail": "According to industry research, the global Ayurveda market was worth US$4.5 billion in 2017.",
+          "evidence": [
+            {
+              "file": "web/02_en-wikipedia-org-wiki-Ayurveda.txt",
+              "quote": "According to industry research, the global Ayurveda market was worth US$4.5 billion in 2017.",
+              "verified": true,
+              "url": "https://en.wikipedia.org/wiki/Ayurveda",
+              "line": 1911,
+              "support": "ok"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "warnings": [
+    "The primary model became unavailable (see the Safety log), so some steps ran on the fallback model. Results are still evidence-checked, but quality may be lower."
+  ],
+  "report_path": "D:\\ByteVox\\runs\\ayurveda_demo\\report.md",
+  "budget": {
+    "calls": 21,
+    "max_calls": 40,
+    "tokens": 47136,
+    "max_tokens": 150000,
+    "seconds": 906.8,
+    "max_seconds": 900.0
+  },
+  "stats": {
+    "retries": 6,
+    "llm_errors": 7,
+    "injections_flagged": 0,
+    "tool_denied": 0,
+    "fallbacks": 1
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "goal": "Review this repo https://github.com/Yash600/Kestral-Service-Banao-Tech.git for bugs and security issues. Produce a prioritized list with evidence.",
+  "status": "refused",
+  "plan": {
+    "action": "final",
+    "feasible": false,
+    "reason": "analysis requires code execution or access to private data which are not provided in the sandbox files.",
+    "subtasks": []
+  },
+  "subtasks": {},
+  "warnings": [],
+  "report_path": "D:\\ByteVox\\runs\\run_20261016_135501_ce56\\report.md",
+  "budget": {
+    "calls": 1,
+    "max_calls": 40,
+    "tokens": 738,
+    "max_tokens": 150000,
+    "seconds": 16.5,
+    "max_seconds": 900.0
+  },
+  "stats": {
+    "retries": 0,
+    "llm_errors": 0,
+    "injections_flagged": 0,
+    "tool_denied": 0
+  }
+}

@@ -1,0 +1,334 @@
+{
+  "status": "partial",
+  "reasons": [
+    "s2 (Review nn.py and tests for correctness and coverage): unchecked - stopped: time limit reached (900s)",
+    "s3 (Review setup.py, README, and notebooks for design and documentation issues): unchecked - stopped: time limit reached (900s)",
+    "assembler unavailable (run: time limit reached (900s)); findings sorted by severity instead"
+  ],
+  "summary": "",
+  "findings": [
+    {
+      "title": "__pow__ rejects Value exponents via assert",
+      "severity": "high",
+      "detail": "Line 36 asserts other is int/float, so Value**Value raises AssertionError instead of computing a gradient; __truediv__ (line 88) works only because -1 is a literal int, not a Value.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/micrograd/engine.py",
+          "quote": "assert isinstance(other, (int, float)), \"only supporting int/float powers for now\"",
+          "verified": true,
+          "line": 36
+        }
+      ],
+      "id": "s1.f1",
+      "subtask": "s1",
+      "checked": true
+    },
+    {
+      "title": "Tests do not cover nn.py",
+      "severity": "high",
+      "detail": "test_engine.py only imports Value from engine; no tests exercise Neuron, Layer, MLP forward/backward, so nn.py correctness is unverified.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/test/test_engine.py",
+          "quote": "from micrograd.engine import Value",
+          "verified": true,
+          "line": 2
+        }
+      ],
+      "id": "s2.f3",
+      "subtask": "s2",
+      "checked": false
+    },
+    {
+      "title": "backward() assumes a DAG; no cycle or multi-path guard",
+      "severity": "medium",
+      "detail": "build_topo uses a visited set so a cyclic graph silently drops edges, and gradients are accumulated with += (lines 18-19, 29-30) so multiple paths to a node are summed, but there is no explicit topological-order validation or cycle detection.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/micrograd/engine.py",
+          "quote": "if v not in visited:",
+          "verified": true,
+          "line": 60
+        }
+      ],
+      "id": "s1.f2",
+      "subtask": "s1",
+      "checked": true
+    },
+    {
+      "title": "No Linear class in nn.py",
+      "severity": "medium",
+      "detail": "nn.py defines Neuron, Layer, MLP instead of a Linear class; forward is y = sum(wi*xi)+b, equivalent to x@w.T+b.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/micrograd/nn.py",
+          "quote": "class Neuron(Module):",
+          "verified": true,
+          "line": 13
+        },
+        {
+          "file": "repos/karpathy__micrograd/micrograd/nn.py",
+          "quote": "act = sum((wi*xi for wi,xi in zip(self.w, x)), self.b)",
+          "verified": true,
+          "line": 21
+        }
+      ],
+      "id": "s2.f1",
+      "subtask": "s2",
+      "checked": false
+    },
+    {
+      "title": "Weight init unnormalized",
+      "severity": "medium",
+      "detail": "Weights drawn from uniform(-1,1) without scaling by fan-in (e.g. 1/sqrt(nin)), which can cause large activations/gradients for wide layers.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/micrograd/nn.py",
+          "quote": "self.w = [Value(random.uniform(-1,1)) for _ in range(nin)]",
+          "verified": true,
+          "line": 16
+        }
+      ],
+      "id": "s2.f2",
+      "subtask": "s2",
+      "checked": false
+    },
+    {
+      "title": "Missing edge cases in tests",
+      "severity": "medium",
+      "detail": "No tests for division by zero, negative exponents, or relu at zero; engine __truediv__ and __pow__ can produce inf/nan or assert failures untested.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/micrograd/engine.py",
+          "quote": "return self * other**-1",
+          "verified": true,
+          "line": 88
+        },
+        {
+          "file": "repos/karpathy__micrograd/micrograd/engine.py",
+          "quote": "assert isinstance(other, (int, float)), \"only supporting int/float powers for now\"",
+          "verified": true,
+          "line": 36
+        }
+      ],
+      "id": "s2.f4",
+      "subtask": "s2",
+      "checked": false
+    },
+    {
+      "title": "trace_graph.ipynb uses private API _prev and _op",
+      "severity": "medium",
+      "detail": "The notebook accesses Value._prev and Value._op directly, coupling documentation to internal implementation details that could break without notice.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/trace_graph.ipynb",
+          "quote": "for child in v._prev:",
+          "verified": true,
+          "line": 34
+        },
+        {
+          "file": "repos/karpathy__micrograd/trace_graph.ipynb",
+          "quote": "if n._op:",
+          "verified": true,
+          "line": 51
+        }
+      ],
+      "id": "s3.f2",
+      "subtask": "s3",
+      "checked": false
+    },
+    {
+      "title": "README example uses in-place += on Value objects",
+      "severity": "medium",
+      "detail": "The example mutates Values with += (e.g. c += c + 1), which is an unusual and potentially confusing API for an autograd engine and may not be intended for users.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/README.md",
+          "quote": "c += c + 1",
+          "verified": true,
+          "line": 25
+        }
+      ],
+      "id": "s3.f7",
+      "subtask": "s3",
+      "checked": false
+    },
+    {
+      "title": "__pow__ numerical edge case at data=0 with negative exponent",
+      "severity": "low",
+      "detail": "self.data**other with other negative and self.data==0 raises ZeroDivisionError; the _backward also computes self.data**(other-1) which is undefined at 0 for non-positive exponents.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/micrograd/engine.py",
+          "quote": "self.grad += (other * self.data**(other-1)) * out.grad",
+          "verified": true,
+          "line": 40
+        }
+      ],
+      "id": "s1.f3",
+      "subtask": "s1",
+      "checked": true
+    },
+    {
+      "title": "__truediv__ relies on __pow__ with literal -1",
+      "severity": "low",
+      "detail": "__truediv__ (line 88) and __rtruediv__ (line 91) delegate to __pow__ with -1, which passes the int/float assert, so division works, but the gradient path is indirect and inherits __pow__'s limitations.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/micrograd/engine.py",
+          "quote": "return self * other**-1",
+          "verified": true,
+          "line": 88
+        }
+      ],
+      "id": "s1.f4",
+      "subtask": "s1",
+      "checked": true
+    },
+    {
+      "title": "grad not reset before backward; stale gradients accumulate",
+      "severity": "low",
+      "detail": "backward() sets self.grad=1 but does not reset grad to 0 for all other nodes in the graph, so calling backward() twice on the same graph accumulates stale gradients via += in _backward closures.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/micrograd/engine.py",
+          "quote": "self.grad = 1",
+          "verified": true,
+          "line": 68
+        }
+      ],
+      "id": "s1.f5",
+      "subtask": "s1",
+      "checked": true
+    },
+    {
+      "title": "Backward pass correctness relies on engine",
+      "severity": "low",
+      "detail": "nn.py has no explicit backward; gradients flow through Value ops. Correct only if engine ops are correct, which tests do verify for engine but not for nn modules.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/micrograd/nn.py",
+          "quote": "def __call__(self, x):",
+          "verified": true,
+          "line": 20
+        },
+        {
+          "file": "repos/karpathy__micrograd/test/test_engine.py",
+          "quote": "assert xmg.grad == xpt.grad.item()",
+          "verified": true,
+          "line": 26
+        }
+      ],
+      "id": "s2.f5",
+      "subtask": "s2",
+      "checked": false
+    },
+    {
+      "title": "setup.py declares no dependencies",
+      "severity": "low",
+      "detail": "setup.py has no install_requires, which is correct since micrograd has no third-party deps, but trace_graph.ipynb requires graphviz without documenting it in setup.py extras.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/setup.py",
+          "quote": "install_requires=[],",
+          "verified": false
+        },
+        {
+          "file": "repos/karpathy__micrograd/trace_graph.ipynb",
+          "quote": "# pip install graphviz",
+          "verified": true,
+          "line": 10
+        }
+      ],
+      "id": "s3.f1",
+      "subtask": "s3",
+      "checked": false
+    },
+    {
+      "title": "trace_graph.ipynb render call lacks extension",
+      "severity": "low",
+      "detail": "dot.render('gout') relies on graphviz default extension; the repo ships gout.svg, implying SVG output, but the code does not specify format explicitly in render.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/trace_graph.ipynb",
+          "quote": "dot.render('gout')",
+          "verified": true,
+          "line": 100
+        }
+      ],
+      "id": "s3.f3",
+      "subtask": "s3",
+      "checked": false
+    },
+    {
+      "title": "setup.py missing install_requires for PyTorch used by tests",
+      "severity": "low",
+      "detail": "Tests require PyTorch as a reference, but setup.py declares no dependencies at all, so users must know to install it manually.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/setup.py",
+          "quote": "packages=setuptools.find_packages(),",
+          "verified": true,
+          "line": 15
+        },
+        {
+          "file": "repos/karpathy__micrograd/README.md",
+          "quote": "To run the unit tests you will have to install [PyTorch](https://pytorch.org/), which the tests use as a reference for verifying the correctness of the calculated gradients.",
+          "verified": true,
+          "line": 65
+        }
+      ],
+      "id": "s3.f4",
+      "subtask": "s3",
+      "checked": false
+    },
+    {
+      "title": "README references puppy.jpg image not present in repo",
+      "severity": "low",
+      "detail": "README embeds an image puppy.jpg that does not exist in the repository file listing, so the image will not render.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/README.md",
+          "quote": "![awww](puppy.jpg)",
+          "verified": true,
+          "line": 4
+        }
+      ],
+      "id": "s3.f5",
+      "subtask": "s3",
+      "checked": false
+    },
+    {
+      "title": "README references moon_mlp.png not present in repo",
+      "severity": "low",
+      "detail": "README embeds moon_mlp.png which is not in the file listing, so the decision boundary image will not render.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/README.md",
+          "quote": "![2d neuron](moon_mlp.png)",
+          "verified": true,
+          "line": 43
+        }
+      ],
+      "id": "s3.f6",
+      "subtask": "s3",
+      "checked": false
+    },
+    {
+      "title": "README microgpt explainer post date appears in the future",
+      "severity": "low",
+      "detail": "The README links to an explainer post dated 2026-02-12, which is a future date and likely a typo.",
+      "evidence": [
+        {
+          "file": "repos/karpathy__micrograd/README.md",
+          "quote": "See also the accompanying [explainer post](https://karpathy.github.io/2026/02/12/microgpt/) for a detailed walkthrough.",
+          "verified": true,
+          "line": 47
+        }
+      ],
+      "id": "s3.f8",
+      "subtask": "s3",
+      "checked": false
+    }
+  ]
+}

@@ -122,6 +122,32 @@ or by me. It scores **Recall** (planted ground truth found *with a real quote*),
 **Distinctness** (no duplicates), 0-5 each. Cost is shown as model calls and tokens: both models ran on free tiers, so
 dollars are $0. Full tables: `comparison/COMPARISON.md`, `comparison/COMPARISON_local3b.md`.
 
+### Code review first (the main task)
+
+Code review is what this harness is built for, so it gets the evidence. Two inputs: `samples/buggy_repo` (6 planted issues, used while building)
+and `library-app` (20 planted issues across Python and JavaScript, written **after** the harness was tuned and kept outside this repo; the
+answer key is not in the repo either). Scoring is by code: an issue counts only if a finding quotes a real line near the right place.
+
+| Held-out `library-app`, 20 planted issues | Issues found | Quotes real | Duplicates | Score /15 |
+|---|---|---|---|---|
+| Rule scan alone (no model, free) | 12 | 100% | 1 of 14 | 12.6 |
+| Team, first run (before fixes) | 9 | 100% | 0 | 12.2 |
+| Team, second run (after fixes) | **17** | 100% | 0 | **14.2** |
+
+- **The rule scan finds the pattern bugs** (hardcoded secrets, MD5, SQL injection, `shell=True`, `eval`, `innerHTML`, bare `except`) but
+  **none of the logic bugs**. Only the model found the timing-unsafe compare, the pagination off-by-one, the wrong-sign late fee, the unchecked
+  list index and the test that hides the pagination bug. That is the honest case for having a model at all.
+- **Fixes made the team better**: 9 to 17 of 20 after the three failures described below, with no invented evidence in either run.
+- **Still missed in run 2**: the `0.0.0.0` bind, the undefined `books` variable in the JS filter, and the never-closed DB connection.
+- **What I have not measured**: a single-agent baseline on `library-app` (it costs hosted tokens; the free daily quota was spent). On
+  `buggy_repo` the baseline tied the team on the hosted model and lost badly on the 3B model (below). Reproduce the scoring with
+  `HARNESS_LIBRARY_APP=<path> python compare.py --tasks library`.
+
+**Extras (kept short on purpose).** The same harness also ran ticket triage and a web research brief; scores are in the tables below. They are
+a demonstration that the design is not tied to code, not the main claim.
+
+**Baseline comparison on `buggy_repo` and the extras**
+
 **Hosted model (Groq `qwen/qwen3.8-27b`)**
 
 | Task | Version | Score /15 | Time | Calls | Tokens |
@@ -143,14 +169,8 @@ dollars are $0. Full tables: `comparison/COMPARISON.md`, `comparison/COMPARISON_
 | Ticket triage | multi-agent (PARTIAL) | **13.3** | 2 of 3 tickets | 187 s | 28 | 23,977 |
 | Ticket triage | single agent | 10.0 | 0 of 3 | 172 s | 14 | 33,077 |
 
-**Held-out projects (written after the harness was tuned; no single-agent baseline, so they are evidence, not part of the table above)**
-
-| Input | Run | Result against its answer key |
-|---|---|---|
-| `library-app` (20 planted issues) | first run | 9 found, all real, one subtask lost to a harness bug (fixed) |
-| `library-app` | second run, after the fixes | **15 clearly found, 2 more partly**, nothing invented; ended PARTIAL because of the duplicate bug above (since fixed) |
-| `support-inbox` (14 tickets, injection planted in one) | first run | 13 of 14 urgencies right, all 5 high tickets right, injection not obeyed |
-| `support-inbox` | crash-and-resume run | **14 of 14** urgencies right, all high tickets right, injection not obeyed |
+**Other held-out input (extra):** `support-inbox` (14 tickets, an injection planted in one): the crash-and-resume run got **14 of 14** urgencies
+right and did not obey the injection.
 
 ### What this says, honestly
 - **The weaker the model, the more the structure helps.** On the 3B model the single agent found *nothing relevant* on both tasks
@@ -172,26 +192,33 @@ dollars are $0. Full tables: `comparison/COMPARISON.md`, `comparison/COMPARISON_
 
 ## The run that went wrong, and what changed
 
-**The headline example: the research comparison run** (`examples/05_research_hosted_multi_PARTIAL`).
+**The headline example: a code-review worker that ran out of steps** (`examples/20_failure_agent_ran_out_of_steps_files_never_reviewed`).
 
-- **What went wrong.** The team's answer scored 15/15, but the run ended **PARTIAL**. The checker agent spent **all 6 of its steps**
-  re-reading pages that code had *already* verified, hit its step limit, and never returned a verdict, so subtask s1 was marked "unchecked".
-- **What the harness did.** It stopped that one agent cleanly, kept the findings (every quote was verified), let the other subtask finish,
-  labelled the whole result PARTIAL with the exact reason, and logged every step. Nothing crashed and nothing was hidden.
-- **What I changed.** The checker now has its own 3-step cap, is forced to give a verdict on its last step, and its prompt says the quotes
-  are already proven. `test_a_checker_that_wanders_cannot_stall_the_run` reproduces the failure with a scripted model.
-- **How I know it worked, live.** The failing run had a checker call that used 6 steps. In later real runs after the fix the checker used
-  at most 3 steps in every call (the library-app review: 1, 1, 3, 3, 1, 1, 1, 1; the 14-ticket triage: 1, 1, 1). I did not re-run the
-  research comparison itself, so its row in the table above still shows the pre-fix behaviour.
+- **What went wrong.** First review of the held-out `library-app`. One worker kept calling tools until its step limit and never answered, so its whole
+  subtask was lost: three source files were never reviewed and the SQL injection was missed. Scored against the answer key, the run found **9 of 20**.
+- **What the harness did.** It stopped that worker cleanly, kept every finished subtask, labelled the run PARTIAL with the exact reason, and logged
+  each step. Nothing crashed, and nothing it did report was invented (all 9 quotes real).
+- **What I changed.** An agent that runs out of steps now gets one last call that can only answer
+  (`test_an_agent_that_runs_out_of_steps_is_asked_for_its_answer_not_discarded`). The same trace showed two smaller losses, also fixed: tool
+  arguments written beside the tool name (rejected twice, wasting two of six steps; both spellings are now accepted), and a worker that filled the
+  5-finding cap so the rest were dropped (a full answer now triggers a follow-up pass for NEW findings;
+  `test_a_worker_that_fills_its_quota_is_asked_for_more`).
+- **How I know it worked, live.** Re-running the same project found **17 of 20** (up from 9), nothing invented. That second run exposed the next
+  bug (duplicates, below), fixed afterwards.
 
-A second real-use bug: on an open web question (`examples/18_open_question_web_research`) the checker kept rejecting correct quotes, because my HTML-to-text step put every link on its own line (`herbal medicines , special diets`), so a sentence copied naturally failed the exact-match check. Sentences are now kept whole, and the match ignores formatting-only differences (citation markers like `[12]`, spaces before punctuation, curly quotes) while the words themselves must still match exactly; `test_web_text_keeps_sentences_whole_and_natural_quotes_verify` covers it.
+**Second code-review failure, from that re-run** (`examples/22_failure_duplicates_piled_up_library_app`): a worker re-reported the same `eval()`,
+`innerHTML` and empty-catch problems under reworded titles. Duplicates were recognised only by identical title, so they piled up, the checker rejected
+the list three times, the worker could not remove them, and the subtask ended unverified. Duplicates are now recognised by the same source line plus
+shared word stems (`test_reworded_duplicates_do_not_pile_up_and_get_the_subtask_stuck`); replaying the real run's 14 findings through the fix leaves 7.
+A retry also now lists the findings already kept and says not to repeat them (`test_a_retry_tells_the_worker_what_is_already_kept`). Not yet re-measured live.
 
-A third, found by testing on a fresh project nobody had tuned for (`examples/20_failure_agent_ran_out_of_steps_files_never_reviewed`): one worker kept calling tools until its step limit, never answered, and its whole subtask was lost, so three source files were never reviewed and the SQL injection was missed. The run said PARTIAL correctly, but the work was wasted. An agent that runs out of steps now gets one last call that can only answer (`test_an_agent_that_runs_out_of_steps_is_asked_for_its_answer_not_discarded`). The same run showed two smaller losses, also fixed: a model wrote tool arguments beside the tool name instead of inside `args` (rejected twice, wasting two of six steps; both spellings are now accepted), and one worker returned exactly the cap of 5 findings so the rest were silently dropped (a full answer now triggers a follow-up pass that asks for NEW, different findings; `test_a_worker_that_fills_its_quota_is_asked_for_more`). Scored against the planted answer key the original run found 9 of 20 issues, every one real, checked and correctly ranked: it was precise but incomplete. These fixes are tested with a scripted model but not yet re-measured live.
+**Extras, failures on the non-code tasks** (short): on the research comparison the checker spent all 6 steps re-reading already-verified pages,
+hit its limit and the run ended PARTIAL (`examples/05_research_hosted_multi_PARTIAL`); it now has a 3-step cap and a forced verdict
+(`test_a_checker_that_wanders_cannot_stall_the_run`), and later real checker calls used at most 3 steps. Open web questions also failed quote checks
+because link text was split across lines (`examples/18_open_question_web_research`); text is now kept whole and matching ignores formatting-only
+differences. Other failures that shaped the design (traces in `examples/`): workers returning zero findings to escape rejection while the run said
+COMPLETE (11); a daily token quota retried for 9 minutes (12); a small model refusing a doable task (13).
 
-A fourth, found by re-running the same held-out project (`examples/22_failure_duplicates_piled_up_library_app`): a worker re-reported the same `eval()`, `innerHTML` and empty-catch problems under reworded titles. Findings that passed the evidence check are kept so an agent cannot escape a rejection by deleting them, but duplicates were recognised only by identical title, so the near-duplicates piled up, the checker rejected the list for duplicates three times, the worker could not remove them, and the subtask ended unverified with its genuine findings marked unchecked. Duplicates are now recognised by the same source line plus shared word stems whenever findings are carried forward (`test_reworded_duplicates_do_not_pile_up_and_get_the_subtask_stuck`); replaying the real run's 14 findings through the fix leaves 7 distinct ones. The same trace showed a second cause: on a retry the worker was never told which findings were already kept, so it re-reported its best issues in new words each time; a retry now lists the kept findings and says not to repeat them (`test_a_retry_tells_the_worker_what_is_already_kept`).
-
-Other failures that shaped the design (all with traces in `examples/`): workers returning zero findings to escape rejection and the run saying
-COMPLETE (11); a daily token quota retried every minute for 9 minutes (12); a small model refusing a doable task (13).
 
 ## Optional extra: resume after a crash
 

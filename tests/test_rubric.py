@@ -62,6 +62,15 @@ def test_empty_results_score_zero_not_crash():
         assert s["total"] == 0 and s["n_findings"] == 0
 
 
+def test_library_recall_needs_the_right_file_line_and_words():
+    good = [f("SQL injection in search", [ev("search.py", 13)]), f("MD5 for hashing", [ev("auth.py", 10)])]
+    s = rubric.score("library", good)
+    assert len(s["detail"]["found"]) == 2 and s["recall"] == 2 / 20
+    assert rubric.score("library", [f("SQL injection", [ev("search.py", 13, ok=False)])])["recall"] == 0
+    assert rubric.score("library", [f("SQL injection", [ev("search.py", 50)])])["recall"] == 0
+    assert rubric.score("library", [f("SQL injection", [ev("auth.py", 13)])])["recall"] == 0
+
+
 if __name__ == "__main__":
     n = fail = 0
     for name, fn in sorted(globals().items()):

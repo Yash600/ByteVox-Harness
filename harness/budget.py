@@ -20,10 +20,18 @@ class Budget:
         self.calls = 0
         self.tokens = 0
         self.start = time.monotonic()
+        self._end = None
         self._lock = threading.Lock()
 
     def elapsed(self):
-        return time.monotonic() - self.start
+        # once a run is finished the clock is frozen; otherwise a finished run would keep "aging"
+        # on screen for as long as the page stays open
+        return (self._end if self._end is not None else time.monotonic()) - self.start
+
+    def freeze(self):
+        """Stop the clock. Called when a run ends."""
+        if self._end is None:
+            self._end = time.monotonic()
 
     def check(self):
         """Raise BudgetExceeded if this budget or any ancestor is spent."""

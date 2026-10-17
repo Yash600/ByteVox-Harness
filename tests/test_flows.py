@@ -621,6 +621,29 @@ def test_runs_that_cannot_be_resumed_say_why():
     assert [e["seq"] for e in read_trace(p)] == [1]
 
 
+def test_a_finished_runs_clock_stops_when_it_ends():
+    """Found from a screenshot: a run that took 6 minutes showed '67m 51s of 15m' because its clock kept
+    counting for as long as the page stayed open. The time in the result and on screen must stay true."""
+    Script.SCRIPT = {"PLANNER": lambda m: plan([sub("s1", "analyze")]),
+                     "WORKER": lambda m: ({"action": "tool", "tool": "read_file", "args": {"path": "utils.py"}}
+                                          if not tool_results(m) else final(summary="x", findings=[])),
+                     "CHECKER": lambda m: final(verdict="accept", feedback="ok"),
+                     "ASSEMBLER": lambda m: final(summary="s", priority_order=[])}
+    r = new_run("Review this code.", "samples/buggy_repo")
+    execute(r)
+    saved = json.loads((r.dir / "state.json").read_text(encoding="utf-8"))["budget"]["seconds"]
+    a = r.budget.snapshot()["seconds"]
+    time.sleep(0.6)
+    b = r.budget.snapshot()["seconds"]
+    assert a == b == saved, (a, b, saved)           # frozen: waiting does not age a finished run
+    import server
+    server.ACTIVE[r.run_id] = r
+    r.done = True
+    server.RUNS = r.dir.parent
+    view = server.run_view(r.run_id, 0)
+    assert view["budget"]["seconds"] == saved and view["status"] == "complete"
+
+
 def test_all_roles_have_least_privilege():
     from harness.agents import SPECS_TOOLS as T
     assert "edit_file" not in T["worker"] and "edit_file" not in T["researcher"] and "edit_file" not in T["checker"]

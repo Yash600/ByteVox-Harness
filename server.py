@@ -215,13 +215,16 @@ def run_view(run_id, after):
     out = {"run_id": run_id, "state": state, "status": status, "active": active,
            "resumable": is_resumable(run_id),
            "events": events, "pending": live.approver.list_pending() if live else []}
-    if live:
+    if live and active:
         out["budget"] = live.budget.snapshot()
         out["stats"] = live.stats
         out["limits"] = vars(live.limits)
     else:
+        # a finished run reports the figures saved when it ended, never a clock that keeps running
         out["budget"] = state.get("budget")
         out["stats"] = state.get("stats")
+        if live:
+            out["limits"] = vars(live.limits)
     return out
 
 

@@ -687,6 +687,7 @@ def _finish(run: Run, status, reasons, subs):
         run.state.warn("The primary model became unavailable (see the Safety log), so some steps "
                        "ran on the fallback model. Results are still evidence-checked, but quality may be lower.")
         snap = run.state.snapshot()
+    run.budget.freeze()          # the run is over: stop the clock so the saved and displayed time stay true
     report = render_report(run, status, reasons, summary, all_findings, snap)
     (run.dir / "report.md").write_text(report, encoding="utf-8")
     (run.dir / "result.json").write_text(json.dumps(

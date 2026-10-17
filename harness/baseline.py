@@ -34,6 +34,7 @@ def run_baseline(run: Run):
             findings, summary = out.get("findings", []), out.get("summary", "")
         except (BudgetExceeded, AgentFailed) as e:
             reasons, status = [f"the single agent failed: {e}"], "failed"
+    run.budget.freeze()                       # the run is over: stop the clock
     verify_findings(run, findings)            # measurement only; nothing is removed or flagged
     for i, f in enumerate(findings, 1):
         f["id"] = f"solo.f{i}"

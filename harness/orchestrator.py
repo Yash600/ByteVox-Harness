@@ -356,7 +356,8 @@ def process_subtask(run: Run, sub):
                        feedback=feedback)
         if verdict == "accept":
             approved = list(carried)
-            if len(raw) >= FINDING_CAP and attempt < max_attempts and _budget_left(run) > 0.3:
+            if (len(raw) >= FINDING_CAP and attempt < max_attempts and _budget_left(run) > 0.3
+                    and not _coverage_planned(run)):
                 # the worker filled its quota, so it probably stopped early: ask for what is left
                 continuing, feedback = True, None
                 run.logger.log(f"checker-{sid}", "continuing_after_cap", attempt=attempt, have=len(carried))
@@ -504,6 +505,13 @@ def _run_subtasks(run, subs, done=None):
         for s in ready:
             pending.pop(s["id"], None)
             done.add(s["id"])
+
+
+def _coverage_planned(run):
+    """When the coverage stage will run, it is the 'ask for more' pass for every file. A worker that fills its quota is
+    then NOT asked again here: in a real run those extra passes spent 4 of the 15 minutes (free-tier rate limits make
+    time the scarce resource), the coverage stage was skipped for lack of time, and the run ended PARTIAL."""
+    return os.environ.get("HARNESS_COVERAGE", "1") != "0" and _has_code(run)
 
 
 def _coverage(run, subs):

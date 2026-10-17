@@ -893,6 +893,28 @@ def test_stop_does_not_wait_for_a_model_call_that_is_still_running():
     assert res["status"] == "failed" and "cancelled" in json.dumps(res["reasons"])
 
 
+def test_a_full_worker_is_not_asked_again_when_the_coverage_stage_will_ask_for_more():
+    calls = {"first": 0, "more": 0}
+
+    def answer(msgs):
+        task = msgs[1]["content"]
+        if "Second look" in task:
+            return final(summary="x", findings=[])
+        if "ALREADY REPORTED" in task:
+            calls["more"] += 1
+            return final(summary="more", findings=[])
+        calls["first"] += 1
+        return final(summary="first", findings=[_finding(*f) for f in FIVE])
+    Script.SCRIPT = {"PLANNER": lambda m: plan([sub("s1", "analyze")]), "WORKER": _reads_then(answer),
+                     "CHECKER": lambda m: final(verdict="accept", feedback="ok"),
+                     "ASSEMBLER": lambda m: final(summary="s", priority_order=[])}
+    with coverage_on():
+        r = new_run("Review this code.", "samples/buggy_repo")
+        execute(r)
+    assert calls == {"first": 1, "more": 0}, calls
+    assert "continuing_after_cap" not in kinds(r) and "coverage_done" in kinds(r)
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     failed = 0
